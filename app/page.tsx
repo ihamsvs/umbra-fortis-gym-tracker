@@ -1,69 +1,234 @@
-import Image from "next/image";
+'use client';
+
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import { AppTab } from '@/types/gym';
+import {
+  subscribe,
+  getSnapshot,
+  getServerSnapshot,
+  hydrate,
+  addFriend,
+  selectFriend,
+  deleteFriend,
+  addExercise,
+  deleteExercise,
+  addLog,
+  deleteLog,
+  deleteAllLogs,
+  resetAll,
+  importState,
+  GymState,
+} from '@/lib/gymStore';
+import { Navbar } from '@/components/Navbar';
+import { FriendModal } from '@/components/FriendModal';
+import { QuickLogModal } from '@/components/QuickLogModal';
+import { WorkoutLogger } from '@/components/WorkoutLogger';
+import { Dashboard } from '@/components/Dashboard';
+import { ProgressCharts } from '@/components/ProgressCharts';
+import { ExerciseList } from '@/components/ExerciseList';
+import { HistoryLog } from '@/components/HistoryLog';
+import { PlateCalculator } from '@/components/PlateCalculator';
+import { SettingsTab } from '@/components/SettingsTab';
+import { hydrateTheme } from '@/lib/themeStore';
+import { syncWithSupabase } from '@/lib/supabaseSync';
+import { getStoredAuthUser, saveAuthUser, clearAuthUser } from '@/lib/authStore';
+import { LoginScreen } from '@/components/LoginScreen';
+import { BatIcon } from '@/components/BatIcon';
+import { Friend } from '@/types/gym';
+
+type Tab = AppTab;
 
 export default function Home() {
+  const { friends, exercises, logs, activeFriendId } = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot
+  );
+
+  const [activeTab, setActiveTab] = useState<Tab>('logger');
+  const [quickLogOpen, setQuickLogOpen] = useState(false);
+  const [addFriendOpen, setAddFriendOpen] = useState(false);
+  const [authUser, setAuthUser] = useState<Friend | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  const [barWeight, setBarWeight] = useState(20);
+  const [plateSizes, setPlateSizes] = useState<number[]>([25, 20, 15, 10, 5, 2.5, 1.25]);
+
+  // Load persisted data once after mount and trigger cloud sync
+  useEffect(() => {
+    hydrate();
+    hydrateTheme();
+    syncWithSupabase();
+
+    const stored = getStoredAuthUser();
+    if (stored) {
+      setAuthUser(stored);
+      selectFriend(stored.id);
+    }
+    setAuthChecked(true);
+  }, []);
+
+  // Listen for import events from SettingsTab
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as Partial<GymState> | undefined;
+      if (detail?.friends && detail?.exercises && detail?.logs) {
+        importState({
+          friends: detail.friends,
+          exercises: detail.exercises,
+          logs: detail.logs,
+          activeFriendId: detail.activeFriendId || detail.friends[0]?.id || '',
+        });
+      }
+    };
+    window.addEventListener('gym-tracker:import', handler);
+    return () => window.removeEventListener('gym-tracker:import', handler);
+  }, []);
+
+  const handleLoginSuccess = (user: Friend) => {
+    setAuthUser(user);
+    saveAuthUser(user);
+    selectFriend(user.id);
+  };
+
+  const handleLogout = () => {
+    clearAuthUser();
+    setAuthUser(null);
+    selectFriend('');
+  };
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="w-16 h-16 rounded-2xl bg-accent text-zinc-950 flex items-center justify-center animate-pulse">
+          <BatIcon className="w-10 h-10" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <LoginScreen
+        friends={friends}
+        onLoginSuccess={handleLoginSuccess}
+        onRefreshFromSupabase={syncWithSupabase}
+      />
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen flex flex-col text-zinc-100 pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        friends={friends}
+        activeFriendId={activeFriendId}
+        currentUser={authUser}
+        onSelectFriend={selectFriend}
+        onOpenQuickLog={() => setQuickLogOpen(true)}
+        onOpenAddFriend={() => setAddFriendOpen(true)}
+        onLogout={handleLogout}
+      />
+
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+        {activeTab === 'logger' && (
+          <WorkoutLogger
+            friends={friends}
+            exercises={exercises}
+            logs={logs}
+            activeFriendId={activeFriendId}
+            currentUser={authUser}
+            onSelectFriend={selectFriend}
+            onSaveLog={addLog}
+            onAddExercise={addExercise}
+            onDeleteLog={deleteLog}
+            onNavigateTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {activeTab === 'dashboard' && (
+          <Dashboard
+            friends={friends}
+            exercises={exercises}
+            logs={logs}
+            activeFriendId={activeFriendId}
+            currentUser={authUser}
+            onOpenQuickLog={() => setQuickLogOpen(true)}
+            onNavigateTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {activeTab === 'charts' && (
+          <ProgressCharts
+            friends={friends}
+            exercises={exercises}
+            logs={logs}
+            activeFriendId={activeFriendId}
+            currentUser={authUser}
+          />
+        )}
+
+        {activeTab === 'exercises' && (
+          <ExerciseList exercises={exercises} onAddExercise={addExercise} />
+        )}
+
+        {activeTab === 'history' && (
+          <HistoryLog
+            friends={friends}
+            exercises={exercises}
+            logs={logs}
+            onDeleteLog={deleteLog}
+          />
+        )}
+
+        {activeTab === 'calculator' && (
+          <PlateCalculator
+            barWeight={barWeight}
+            setBarWeight={setBarWeight}
+            plateSizes={plateSizes}
+            setPlateSizes={setPlateSizes}
+            onLogWeight={() => {
+              setQuickLogOpen(true);
+              setActiveTab('dashboard');
+            }}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsTab
+            friends={friends}
+            exercises={exercises}
+            logs={logs}
+            onDeleteFriend={deleteFriend}
+            onDeleteExercise={deleteExercise}
+            onDeleteAllLogs={deleteAllLogs}
+            onResetAll={resetAll}
+            onLogout={handleLogout}
+          />
+        )}
       </main>
+
+      <footer className="border-t border-zinc-800/60 py-5 text-center text-[11px] text-zinc-500">
+        Umbra Fortis — Fuerza en la sombra, progreso en equipo
+      </footer>
+
+      <FriendModal
+        isOpen={addFriendOpen}
+        onClose={() => setAddFriendOpen(false)}
+        onAddFriend={addFriend}
+      />
+
+      {quickLogOpen && (
+        <QuickLogModal
+          onClose={() => setQuickLogOpen(false)}
+          friends={friends}
+          exercises={exercises}
+          logs={logs}
+          activeFriendId={activeFriendId}
+          onSaveLog={addLog}
+        />
+      )}
     </div>
   );
 }
