@@ -1,6 +1,6 @@
 export type Unit = 'kg' | 'lbs';
 
-export type AppTab = 'logger' | 'dashboard' | 'charts' | 'exercises' | 'history' | 'calculator' | 'settings';
+export type AppTab = 'logger' | 'profile' | 'charts' | 'exercises' | 'history' | 'calculator' | 'settings';
 
 export type Equipment = 'Barra' | 'Mancuernas' | 'Polea' | 'Corporal' | 'Banca' | 'Otro';
 
