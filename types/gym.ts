@@ -44,6 +44,8 @@ export interface WorkoutLog {
   sets: WorkoutSet[];
   notes?: string;
   isPR?: boolean;
+  sessionTitle?: string;
+  sessionId?: string;
 }
 
 export interface PersonalRecord {
@@ -70,7 +72,9 @@ export interface SessionExerciseItem {
 
 export interface ActiveWorkoutSession {
   id: string;
+  title: string;
   date: string;
   startTime: number;
   exercises: SessionExerciseItem[];
+  notes?: string;
 }

@@ -37,15 +37,29 @@ export async function getWorkoutLogsAction(): Promise<ActionResult<WorkoutLog[]>
       return { success: false, error: error.message, isConfigured: true };
     }
 
-    const mapped: WorkoutLog[] = (data || []).map((row) => ({
-      id: row.id,
-      friendId: row.friend_id,
-      exerciseId: row.exercise_id,
-      date: row.date,
-      sets: row.sets || [],
-      notes: row.notes || undefined,
-      isPR: row.is_pr,
-    }));
+    const mapped: WorkoutLog[] = (data || []).map((row) => {
+      let sessionTitle: string | undefined = undefined;
+      let notes = row.notes || undefined;
+      if (notes && notes.startsWith('[[')) {
+        const closeIdx = notes.indexOf(']]');
+        if (closeIdx > 2) {
+          sessionTitle = notes.substring(2, closeIdx);
+          const remaining = notes.substring(closeIdx + 2).trim();
+          notes = remaining || undefined;
+        }
+      }
+
+      return {
+        id: row.id,
+        friendId: row.friend_id,
+        exerciseId: row.exercise_id,
+        date: row.date,
+        sets: row.sets || [],
+        notes: notes,
+        isPR: row.is_pr,
+        sessionTitle: sessionTitle,
+      };
+    });
 
     return { success: true, data: mapped, isConfigured: true };
   } catch (err: unknown) {
@@ -72,6 +86,11 @@ export async function addWorkoutLogAction(log: WorkoutLog): Promise<ActionResult
   }
 
   try {
+    let finalNotes = log.notes || null;
+    if (log.sessionTitle) {
+      finalNotes = `[[${log.sessionTitle}]]${log.notes ? ' ' + log.notes : ''}`;
+    }
+
     const { error } = await supabase.from('workout_logs').insert([
       {
         id: log.id,
@@ -79,7 +98,7 @@ export async function addWorkoutLogAction(log: WorkoutLog): Promise<ActionResult
         exercise_id: log.exerciseId,
         date: log.date,
         sets: log.sets,
-        notes: log.notes || null,
+        notes: finalNotes,
         is_pr: Boolean(log.isPR),
       },
     ]);
