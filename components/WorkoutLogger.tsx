@@ -183,8 +183,9 @@ export function WorkoutLogger({
   // Add exercise item to active session
   const handleAddExerciseToSession = (exerciseId: string) => {
     if (!activeSession) return;
+    const newId = `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newItem: SessionExerciseItem = {
-      id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: newId,
       exerciseId,
       sets: loadLastSetsForExercise(exerciseId),
     };
@@ -193,6 +194,14 @@ export function WorkoutLogger({
       exercises: [...activeSession.exercises, newItem],
     });
     setIsExercisePickerOpen(false);
+
+    // Auto-scroll newly added exercise to center of viewport
+    setTimeout(() => {
+      const el = document.getElementById(`exercise_card_${newId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 120);
   };
 
   // Remove exercise from active session
@@ -534,7 +543,8 @@ export function WorkoutLogger({
                 return (
                   <div
                     key={item.id}
-                    className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl relative"
+                    id={`exercise_card_${item.id}`}
+                    className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl relative scroll-mt-24 transition-all"
                   >
                     {/* Exercise Card Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-800/80 pb-3">
@@ -619,15 +629,18 @@ export function WorkoutLogger({
                                     type="number"
                                     step="0.5"
                                     min="0"
-                                    value={set.weight}
-                                    onChange={(e) =>
+                                    value={set.weight === 0 ? '' : set.weight}
+                                    placeholder="0"
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const val = raw === '' ? 0 : parseFloat(raw);
                                       handleUpdateSet(
                                         item.id,
                                         sIdx,
                                         'weight',
-                                        parseFloat(e.target.value) || 0
-                                      )
-                                    }
+                                        isNaN(val) ? 0 : val
+                                      );
+                                    }}
                                     className="w-16 bg-transparent text-sm font-black text-white text-right outline-none"
                                   />
                                   <span className="text-xs font-bold text-zinc-400">kg</span>
@@ -664,15 +677,18 @@ export function WorkoutLogger({
                                   <input
                                     type="number"
                                     min="1"
-                                    value={set.reps}
-                                    onChange={(e) =>
+                                    value={set.reps === 0 ? '' : set.reps}
+                                    placeholder="0"
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const val = raw === '' ? 0 : parseInt(raw, 10);
                                       handleUpdateSet(
                                         item.id,
                                         sIdx,
                                         'reps',
-                                        parseInt(e.target.value) || 0
-                                      )
-                                    }
+                                        isNaN(val) ? 0 : val
+                                      );
+                                    }}
                                     className="w-14 bg-transparent text-sm font-black text-white text-right outline-none"
                                   />
                                 </div>

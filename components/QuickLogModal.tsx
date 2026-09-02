@@ -295,8 +295,13 @@ export function QuickLogModal({
                         type="number"
                         step="0.5"
                         min="0"
-                        value={set.weight}
-                        onChange={(e) => handleUpdateSet(idx, 'weight', parseFloat(e.target.value) || 0)}
+                        value={set.weight === 0 ? '' : set.weight}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const val = raw === '' ? 0 : parseFloat(raw);
+                          handleUpdateSet(idx, 'weight', isNaN(val) ? 0 : val);
+                        }}
                         className="w-full bg-transparent text-sm font-black text-white text-right outline-none"
                       />
                       <span className="text-xs font-bold text-zinc-400">kg</span>
@@ -307,8 +312,13 @@ export function QuickLogModal({
                       <input
                         type="number"
                         min="1"
-                        value={set.reps}
-                        onChange={(e) => handleUpdateSet(idx, 'reps', parseInt(e.target.value) || 0)}
+                        value={set.reps === 0 ? '' : set.reps}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const val = raw === '' ? 0 : parseInt(raw, 10);
+                          handleUpdateSet(idx, 'reps', isNaN(val) ? 0 : val);
+                        }}
                         className="w-full bg-transparent text-sm font-black text-white text-right outline-none"
                       />
                     </div>
