@@ -468,15 +468,15 @@ export function WorkoutLogger({
         /* ACTIVE WORKOUT SESSION VIEW */
         <div className="space-y-6">
           
-          {/* Active Session Header Bar */}
-          <div className="bg-zinc-950 border border-accent/30 rounded-3xl p-4 sm:p-5 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-16 z-30 backdrop-blur-md">
+          {/* Active Session Header */}
+          <div className="bg-zinc-950/90 border border-accent/30 rounded-3xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xl animate-fade-in-up">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-accent/15 text-accent rounded-2xl border border-accent/30">
+              <div className="w-10 h-10 rounded-2xl bg-accent text-zinc-950 flex items-center justify-center shadow-lg shadow-accent/20 animate-pulse-glow">
                 <Flame className="w-5 h-5" />
               </div>
               <div>
                 <span className="text-[10px] font-black uppercase tracking-wider text-accent block -mb-0.5">
-                  Sesión en Progreso
+                  ⚡ Sesión en Progreso
                 </span>
                 <div className="text-sm font-black text-white">
                   {formatDate(activeSession.date)}
@@ -487,13 +487,13 @@ export function WorkoutLogger({
             {/* Live Metrics */}
             <div className="flex items-center gap-3 text-xs font-bold">
               <div className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
-                Ejercicios: <span className="text-accent">{activeSession.exercises.length}</span>
+                Ejercicios: <span className="text-accent font-black">{activeSession.exercises.length}</span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
-                Series: <span className="text-amber-400">{liveSessionSetsCount}</span>
+                Series: <span className="text-amber-400 font-black">{liveSessionSetsCount}</span>
               </div>
               <div className="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300">
-                Volumen: <span className="text-emerald-400">{liveSessionVolume.toLocaleString('es-ES')} kg</span>
+                Volumen: <span className="text-emerald-400 font-black">{liveSessionVolume.toLocaleString('es-ES')} kg</span>
               </div>
             </div>
 
@@ -502,7 +502,7 @@ export function WorkoutLogger({
               <button
                 type="button"
                 onClick={() => setIsExercisePickerOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-accent font-bold text-xs border border-accent/20 transition-all"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-accent font-bold text-xs border border-accent/20 hover-lift transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Ejercicio</span>
@@ -510,7 +510,7 @@ export function WorkoutLogger({
               <button
                 type="button"
                 onClick={() => setConfirmCancelOpen(true)}
-                className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-zinc-900 transition-colors"
+                className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-zinc-900 transition-colors cursor-pointer"
                 title="Descartar sesión"
               >
                 <X className="w-5 h-5" />
@@ -610,9 +610,9 @@ export function WorkoutLogger({
                               <button
                                 type="button"
                                 onClick={() => handleToggleSetCompleted(set.id)}
-                                className={`sm:hidden p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 ${
+                                className={`sm:hidden p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
                                   isDone
-                                    ? 'bg-emerald-500 text-zinc-950'
+                                    ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/30 animate-pop'
                                     : 'bg-zinc-800 text-zinc-400'
                                 }`}
                               >
@@ -723,10 +723,10 @@ export function WorkoutLogger({
                               <button
                                 type="button"
                                 onClick={() => handleToggleSetCompleted(set.id)}
-                                className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-xl transition-all ${
+                                className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-xl transition-all cursor-pointer ${
                                   isDone
-                                    ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20'
-                                    : 'bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-800 border border-zinc-800'
+                                    ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30 scale-105 animate-pop'
+                                    : 'bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-800 border border-zinc-800 hover:scale-105'
                                 }`}
                                 title={isDone ? 'Serie completada' : 'Marcar serie como completada'}
                               >

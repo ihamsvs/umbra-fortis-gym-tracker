@@ -123,23 +123,23 @@ export default function Home() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         friends={friends}
-        activeFriendId={activeFriendId}
+        activeFriendId={authUser.id}
         currentUser={authUser}
-        onSelectFriend={selectFriend}
+        onSelectFriend={() => {}}
         onOpenQuickLog={() => setQuickLogOpen(true)}
         onOpenAddFriend={() => setAddFriendOpen(true)}
         onLogout={handleLogout}
       />
 
-      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 animate-fade-in">
         {activeTab === 'logger' && (
           <WorkoutLogger
             friends={friends}
             exercises={exercises}
             logs={logs}
-            activeFriendId={activeFriendId}
+            activeFriendId={authUser.id}
             currentUser={authUser}
-            onSelectFriend={selectFriend}
+            onSelectFriend={() => {}}
             onSaveLog={addLog}
             onAddExercise={addExercise}
             onDeleteLog={deleteLog}
@@ -152,7 +152,7 @@ export default function Home() {
             friends={friends}
             exercises={exercises}
             logs={logs}
-            activeFriendId={activeFriendId}
+            activeFriendId={authUser.id}
             currentUser={authUser}
             onOpenQuickLog={() => setQuickLogOpen(true)}
             onNavigateTab={(tab) => setActiveTab(tab)}
@@ -164,7 +164,7 @@ export default function Home() {
             friends={friends}
             exercises={exercises}
             logs={logs}
-            activeFriendId={activeFriendId}
+            activeFriendId={authUser.id}
             currentUser={authUser}
           />
         )}

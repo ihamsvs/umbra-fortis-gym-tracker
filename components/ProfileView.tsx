@@ -259,7 +259,7 @@ export function ProfileView({
             return (
               <div
                 key={exercise!.id}
-                className="bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 rounded-3xl p-5 shadow-xl transition-all"
+                className="bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 rounded-3xl p-5 shadow-xl hover-lift transition-all"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 uppercase">
@@ -376,7 +376,7 @@ export function ProfileView({
             friendsStats.map((item) => (
               <div
                 key={item.friend.id}
-                className="bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 rounded-3xl p-5 shadow-xl transition-all space-y-4"
+                className="bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 rounded-3xl p-5 shadow-xl hover-lift transition-all space-y-4"
               >
                 {/* Friend Header */}
                 <div className="flex items-center gap-3">
