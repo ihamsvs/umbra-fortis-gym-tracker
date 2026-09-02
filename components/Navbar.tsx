@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Friend, AppTab } from '@/types/gym';
-import { Dumbbell, PlusCircle, Users, BarChart3, ListFilter, Calculator, Settings, ChevronDown, LayoutDashboard, History, Flame, LogOut } from 'lucide-react';
+import { Dumbbell, PlusCircle, Users, BarChart3, ListFilter, Calculator, Settings, ChevronDown, History, Flame, LogOut, User } from 'lucide-react';
 import { BatIcon } from '@/components/BatIcon';
 import { FriendAvatar } from '@/components/FriendAvatar';
 
@@ -20,7 +20,7 @@ interface NavbarProps {
 
 const TABS: { id: AppTab; label: string; shortLabel: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'logger', label: 'Registrar Sesión', shortLabel: 'Entrenar', icon: Flame },
-  { id: 'dashboard', label: 'Cuartel General', shortLabel: 'Equipo', icon: LayoutDashboard },
+  { id: 'profile', label: 'Mi Perfil', shortLabel: 'Perfil', icon: User },
   { id: 'charts', label: 'Progreso & Gráficos', shortLabel: 'Progreso', icon: BarChart3 },
   { id: 'exercises', label: 'Ejercicios', shortLabel: 'Ejercicios', icon: Dumbbell },
   { id: 'history', label: 'Historial', shortLabel: 'Historial', icon: History },

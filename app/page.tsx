@@ -23,7 +23,7 @@ import { Navbar } from '@/components/Navbar';
 import { FriendModal } from '@/components/FriendModal';
 import { QuickLogModal } from '@/components/QuickLogModal';
 import { WorkoutLogger } from '@/components/WorkoutLogger';
-import { Dashboard } from '@/components/Dashboard';
+import { ProfileView } from '@/components/ProfileView';
 import { ProgressCharts } from '@/components/ProgressCharts';
 import { ExerciseList } from '@/components/ExerciseList';
 import { HistoryLog } from '@/components/HistoryLog';
@@ -147,8 +147,8 @@ export default function Home() {
           />
         )}
 
-        {activeTab === 'dashboard' && (
-          <Dashboard
+        {activeTab === 'profile' && (
+          <ProfileView
             friends={friends}
             exercises={exercises}
             logs={logs}
@@ -190,7 +190,7 @@ export default function Home() {
             setPlateSizes={setPlateSizes}
             onLogWeight={() => {
               setQuickLogOpen(true);
-              setActiveTab('dashboard');
+              setActiveTab('profile');
             }}
           />
         )}

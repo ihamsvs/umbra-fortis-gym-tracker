@@ -10,6 +10,7 @@ import {
   Equipment,
   ActiveWorkoutSession,
   SessionExerciseItem,
+  AppTab,
 } from '@/types/gym';
 import { calculate1RM, getMaxWeightInLog, checkIsPR, calculateVolume, formatDate } from '@/lib/utils';
 import {
@@ -49,7 +50,7 @@ interface WorkoutLoggerProps {
   onSaveLog: (log: WorkoutLog) => void;
   onAddExercise: (exercise: Exercise) => void;
   onDeleteLog: (logId: string) => void;
-  onNavigateTab?: (tab: 'charts' | 'history' | 'exercises' | 'dashboard') => void;
+  onNavigateTab?: (tab: AppTab) => void;
 }
 
 const MUSCLE_GROUPS: MuscleGroup[] = ['Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Core'];
