@@ -38,6 +38,8 @@ import {
 } from 'lucide-react';
 import { FriendAvatar } from './FriendAvatar';
 import { addWorkoutLogAction } from '@/actions/workouts';
+import { PRShareStoryModal, PRShareData } from './PRShareStoryModal';
+import { Share2 } from 'lucide-react';
 import { addExerciseAction } from '@/actions/exercises';
 
 interface WorkoutLoggerProps {
@@ -114,7 +116,11 @@ export function WorkoutLogger({
     totalSets: number;
     exerciseCount: number;
     prsCount: number;
+    lastPrData?: PRShareData;
   } | null>(null);
+
+  // Story Share Modal
+  const [prShareData, setPrShareData] = useState<PRShareData | null>(null);
 
   // Filter & Search inside exercise picker
   const [pickerCategory, setPickerCategory] = useState<MuscleGroup | 'Todos'>('Todos');
@@ -324,10 +330,27 @@ export function WorkoutLogger({
     let totalVolumeCalculated = 0;
     let totalSetsCount = 0;
     let prsAchieved = 0;
+    let firstPrData: PRShareData | undefined = undefined;
 
     for (const item of activeSession.exercises) {
       const isPR = checkIsPR(logs, currentFriendId, item.exerciseId, item.sets);
-      if (isPR) prsAchieved++;
+      if (isPR) {
+        prsAchieved++;
+        if (!firstPrData) {
+          const ex = exercises.find((e) => e.id === item.exerciseId);
+          const { maxWeight, reps } = getMaxWeightInLog(item.sets);
+          if (ex && activeFriend) {
+            firstPrData = {
+              friend: activeFriend,
+              exercise: ex,
+              weight: maxWeight,
+              reps,
+              date: activeSession.date,
+              notes: item.notes,
+            };
+          }
+        }
+      }
 
       totalVolumeCalculated += calculateVolume(item.sets);
       totalSetsCount += item.sets.length;
@@ -362,6 +385,7 @@ export function WorkoutLogger({
       totalSets: totalSetsCount,
       exerciseCount: activeSession.exercises.length,
       prsCount: prsAchieved,
+      lastPrData: firstPrData,
     });
 
     // Clear active session
@@ -1150,16 +1174,29 @@ export function WorkoutLogger({
             </div>
 
             {summaryData.prsCount > 0 && (
-              <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 font-black text-xs flex items-center justify-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                <span>¡Conseguiste {summaryData.prsCount} nuevo(s) Récord(s) Personal(es)!</span>
+              <div className="space-y-2">
+                <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 font-black text-xs flex items-center justify-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>¡Conseguiste {summaryData.prsCount} nuevo(s) Récord(s) Personal(es)!</span>
+                </div>
+
+                {summaryData.lastPrData && (
+                  <button
+                    type="button"
+                    onClick={() => setPrShareData(summaryData.lastPrData || null)}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-accent to-accent-secondary text-zinc-950 font-black text-xs hover:brightness-110 shadow-lg shadow-accent/25 transition-all cursor-pointer"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>📸 Compartir Récord en Instagram / WhatsApp</span>
+                  </button>
+                )}
               </div>
             )}
 
             <button
               type="button"
               onClick={() => setSummaryData(null)}
-              className="w-full py-3.5 rounded-2xl bg-accent text-zinc-950 font-black text-sm hover:brightness-110 shadow-lg shadow-accent/20 transition-all"
+              className="w-full py-3.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-black text-xs transition-all cursor-pointer"
             >
               Cerrar y Ver Resumen
             </button>
@@ -1184,20 +1221,29 @@ export function WorkoutLogger({
               <button
                 type="button"
                 onClick={() => setConfirmCancelOpen(false)}
-                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300 hover:bg-zinc-700"
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300 hover:bg-zinc-700 cursor-pointer"
               >
                 Continuar Sesión
               </button>
               <button
                 type="button"
                 onClick={handleCancelSession}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold"
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold cursor-pointer"
               >
                 Sí, Descartar
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* 8. MODAL: PR INSTAGRAM / WHATSAPP 9:16 STORY SHARE */}
+      {prShareData && (
+        <PRShareStoryModal
+          isOpen={Boolean(prShareData)}
+          onClose={() => setPrShareData(null)}
+          prData={prShareData}
+        />
       )}
 
     </div>

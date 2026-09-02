@@ -17,8 +17,10 @@ import {
   ChevronUp,
   Layers,
   Sparkles,
+  Share2,
 } from 'lucide-react';
 import { FriendAvatar } from '@/components/FriendAvatar';
+import { PRShareStoryModal, PRShareData } from '@/components/PRShareStoryModal';
 
 interface HistoryLogProps {
   friends: Friend[];
@@ -66,6 +68,9 @@ export function HistoryLog({ friends, exercises, logs, onDeleteLog }: HistoryLog
   const [filterFriendId, setFilterFriendId] = useState<string>('Todos');
   const [filterRoutine, setFilterRoutine] = useState<string>('Todos');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Story Share Modal
+  const [prShareData, setPrShareData] = useState<PRShareData | null>(null);
 
   // Delete modal state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -343,9 +348,30 @@ export function HistoryLog({ friends, exercises, logs, onDeleteLog }: HistoryLog
                               </span>
                             </div>
                             {item.isPR && (
-                              <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/30">
-                                <Award className="w-3 h-3" /> PR
-                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/30">
+                                  <Award className="w-3 h-3" /> PR
+                                </span>
+                                {friend && item.exercise && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPrShareData({
+                                        friend,
+                                        exercise: item.exercise!,
+                                        weight: item.maxWeight,
+                                        reps: item.sets[0]?.reps || 1,
+                                        date: session.date,
+                                        notes: item.notes,
+                                      })
+                                    }
+                                    className="p-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-accent border border-amber-500/25 transition-colors cursor-pointer"
+                                    title="Compartir Récord en Instagram Stories o WhatsApp"
+                                  >
+                                    <Share2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
 
@@ -435,6 +461,15 @@ export function HistoryLog({ friends, exercises, logs, onDeleteLog }: HistoryLog
             </div>
           </div>
         </div>
+      )}
+
+      {/* PR Instagram / WhatsApp 9:16 Story Share Modal */}
+      {prShareData && (
+        <PRShareStoryModal
+          isOpen={Boolean(prShareData)}
+          onClose={() => setPrShareData(null)}
+          prData={prShareData}
+        />
       )}
     </div>
   );

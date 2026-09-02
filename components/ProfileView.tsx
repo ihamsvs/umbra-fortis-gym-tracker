@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Friend, Exercise, WorkoutLog, AppTab } from '@/types/gym';
 import { calculateVolume, getMaxWeightInLog, formatDate, getFriendPRs, calculate1RM } from '@/lib/utils';
 import {
@@ -19,9 +19,11 @@ import {
   User,
   Sparkles,
   ArrowUpRight,
+  Share2,
 } from 'lucide-react';
 import { BatIcon } from '@/components/BatIcon';
 import { FriendAvatar } from '@/components/FriendAvatar';
+import { PRShareStoryModal, PRShareData } from '@/components/PRShareStoryModal';
 
 interface ProfileViewProps {
   friends: Friend[];
@@ -44,6 +46,8 @@ export function ProfileView({
   onOpenQuickLog,
   onNavigateTab,
 }: ProfileViewProps) {
+  const [prShareData, setPrShareData] = useState<PRShareData | null>(null);
+
   // Combine all members ensuring current user is present
   const allMembers = useMemo(() => {
     const list = [...friends];
@@ -266,9 +270,27 @@ export function ProfileView({
                     {exercise!.category}
                   </span>
                   {pr && (
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                      RÉCORD
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                        RÉCORD
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPrShareData({
+                            friend: activeFriend,
+                            exercise: exercise!,
+                            weight: pr.maxWeight,
+                            reps: pr.repsAtMax,
+                            date: pr.date,
+                          })
+                        }
+                        className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-accent transition-colors cursor-pointer"
+                        title="Compartir en Instagram Stories o WhatsApp"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -427,6 +449,15 @@ export function ProfileView({
           )}
         </div>
       </div>
+
+      {/* PR Instagram / WhatsApp 9:16 Story Share Modal */}
+      {prShareData && (
+        <PRShareStoryModal
+          isOpen={Boolean(prShareData)}
+          onClose={() => setPrShareData(null)}
+          prData={prShareData}
+        />
+      )}
 
     </div>
   );
