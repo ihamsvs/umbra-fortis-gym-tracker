@@ -454,8 +454,9 @@ export function WorkoutLogger({
                   Atleta Activo
                 </span>
                 {activeSession && (
-                  <span className="flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
-                    🔴 En Entrenamiento
+                  <span className="flex items-center gap-1.5 text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    En Entrenamiento
                   </span>
                 )}
               </div>
@@ -553,8 +554,9 @@ export function WorkoutLogger({
                 <Flame className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] font-black uppercase tracking-wider text-accent block -mb-0.5">
-                  ⚡ Rutina en Progreso
+                <span className="text-[10px] font-black uppercase tracking-wider text-accent flex items-center gap-1 -mb-0.5">
+                  <Zap className="w-3 h-3 fill-accent" />
+                  Rutina en Progreso
                 </span>
                 <div className="text-base sm:text-lg font-black text-white">
                   {activeSession.title || 'Día de Entrenamiento'}
@@ -1186,8 +1188,8 @@ export function WorkoutLogger({
                     onClick={() => setPrShareData(summaryData.lastPrData || null)}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-gradient-to-r from-amber-400 via-accent to-accent-secondary text-zinc-950 font-black text-xs hover:brightness-110 shadow-lg shadow-accent/25 transition-all cursor-pointer"
                   >
-                    <Share2 className="w-4 h-4" />
-                    <span>📸 Compartir Récord en Instagram / WhatsApp</span>
+                    <Share2 className="w-4 h-4 stroke-[2.5]" />
+                    <span>Compartir Récord en Redes (Story)</span>
                   </button>
                 )}
               </div>

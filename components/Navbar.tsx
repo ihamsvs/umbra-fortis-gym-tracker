@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Friend, AppTab } from '@/types/gym';
-import { Dumbbell, PlusCircle, Users, BarChart3, ListFilter, Calculator, Settings, ChevronDown, History, Flame, LogOut, User } from 'lucide-react';
+import { Dumbbell, PlusCircle, Users, BarChart3, ListFilter, Calculator, Settings, ChevronDown, History, Flame, LogOut, User, Lock, Smartphone } from 'lucide-react';
 import { BatIcon } from '@/components/BatIcon';
 import { FriendAvatar } from '@/components/FriendAvatar';
 
@@ -143,10 +143,22 @@ export function Navbar({
                         setActiveTab('profile');
                         setFriendMenuOpen(false);
                       }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-zinc-200 border border-zinc-800 transition-colors"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-zinc-200 border border-zinc-800 transition-colors cursor-pointer"
                     >
                       <span>Ver Mi Perfil</span>
                       <User className="w-3.5 h-3.5 text-accent" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFriendMenuOpen(false);
+                        window.dispatchEvent(new CustomEvent('umbra:open-pwa-install'));
+                      }}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-zinc-200 border border-zinc-800 transition-colors cursor-pointer"
+                    >
+                      <span>Instalar Aplicación</span>
+                      <Smartphone className="w-3.5 h-3.5 text-accent" />
                     </button>
 
                     {onLogout && (
@@ -163,8 +175,9 @@ export function Navbar({
                     )}
                   </div>
 
-                  <p className="text-[10px] text-zinc-500 leading-tight">
-                    🔒 Sesión protegida. Para ingresar con otra cuenta, cierra sesión e introduce la contraseña.
+                  <p className="text-[10px] text-zinc-500 leading-tight flex items-start gap-1.5 pt-1">
+                    <Lock className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
+                    <span>Sesión protegida. Para ingresar con otra cuenta, cierra sesión e introduce la contraseña.</span>
                   </p>
                 </div>
               )}
