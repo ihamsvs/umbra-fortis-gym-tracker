@@ -17,6 +17,7 @@ import {
   Smartphone,
   Maximize2,
   Image as ImageIcon,
+  Zap,
 } from 'lucide-react';
 
 export type PRCardAspectRatio = '9:16' | '9:13' | '3:4';
@@ -156,7 +157,7 @@ export function PRShareStoryModal({ isOpen, onClose, prData }: PRShareStoryModal
     ctx.fillStyle = '#fef08a';
     ctx.font = '900 24px sans-serif';
     ctx.letterSpacing = '3px';
-    ctx.fillText('⚡ NUEVO RÉCORD PERSONAL ⚡', 540, pillY + 38);
+    ctx.fillText('• NUEVO RÉCORD PERSONAL •', 540, pillY + 38);
 
     // 7. Centerpiece: Exercise Name & Category
     const exY = pillY + 95;
@@ -226,7 +227,7 @@ export function PRShareStoryModal({ isOpen, onClose, prData }: PRShareStoryModal
     ctx.fillStyle = '#38bdf8';
     ctx.font = '800 22px sans-serif';
     ctx.letterSpacing = '2px';
-    ctx.fillText(`🔥 1RM ESTIMADO: ${est1RM} KG`, 540, rmBoxY + 34);
+    ctx.fillText(`1RM ESTIMADO: ${est1RM} KG`, 540, rmBoxY + 34);
 
     // 10. Athlete Card
     const athY = H - (aspectRatio === '3:4' ? 240 : aspectRatio === '9:13' ? 270 : 310);
@@ -474,8 +475,9 @@ export function PRShareStoryModal({ isOpen, onClose, prData }: PRShareStoryModal
                 <div className="text-xs font-black text-zinc-200 mt-0.5 uppercase tracking-wider">
                   × {reps} {reps === 1 ? 'Repetición' : 'Repeticiones'}
                 </div>
-                <div className="mt-1.5 inline-block px-2.5 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 text-[9px] font-black">
-                  ⚡ 1RM ESTIMADO: {est1RM} KG
+                <div className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-400 text-[9px] font-black">
+                  <Zap className="w-2.5 h-2.5 fill-sky-400" />
+                  <span>1RM ESTIMADO: {est1RM} KG</span>
                 </div>
               </div>
             </div>

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Friend, Exercise, WorkoutLog } from '@/types/gym';
-import { Settings, Download, Upload, RefreshCcw, Users, Dumbbell, ClipboardList, Trash2, AlertTriangle, CheckCircle2, Lightbulb, LogOut } from 'lucide-react';
+import { Settings, Download, Upload, RefreshCcw, Users, Dumbbell, ClipboardList, Trash2, AlertTriangle, CheckCircle2, Lightbulb, LogOut, Smartphone } from 'lucide-react';
 import { FriendAvatar } from '@/components/FriendAvatar';
 import { CharacterSelector } from '@/components/CharacterSelector';
 
@@ -117,6 +117,37 @@ export function SettingsTab({
             <input type="file" accept=".json" className="hidden" onChange={handleImport} />
           </label>
         </div>
+      </div>
+
+      {/* PWA Mobile App Section */}
+      <div className="bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-950 border border-accent/30 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 bg-accent/15 text-accent rounded-2xl border border-accent/25">
+            <Smartphone className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-white flex items-center gap-2">
+              Aplicación Móvil (PWA)
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-accent/20 text-accent uppercase">
+                Instalable
+              </span>
+            </h3>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Instala Umbra Fortis en tu pantalla de inicio para acceder en pantalla completa y offline.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('umbra:open-pwa-install'));
+          }}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-accent hover:bg-accent/90 text-zinc-950 font-black text-xs shadow-lg shadow-accent/20 transition-all active:scale-95 cursor-pointer shrink-0"
+        >
+          <Download className="w-4 h-4 stroke-[2.5]" />
+          <span>Instalar Aplicación</span>
+        </button>
       </div>
 
       {/* Personaje y Tema */}
