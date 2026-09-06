@@ -28,6 +28,7 @@ import { ProgressCharts } from '@/components/ProgressCharts';
 import { ExerciseList } from '@/components/ExerciseList';
 import { HistoryLog } from '@/components/HistoryLog';
 import { PlateCalculator } from '@/components/PlateCalculator';
+import { RankedLeagueView } from '@/components/RankedLeagueView';
 import { SettingsTab } from '@/components/SettingsTab';
 import { hydrateTheme } from '@/lib/themeStore';
 import { syncWithSupabase } from '@/lib/supabaseSync';
@@ -156,6 +157,17 @@ export default function Home() {
             currentUser={authUser}
             onOpenQuickLog={() => setQuickLogOpen(true)}
             onNavigateTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {activeTab === 'ranked' && (
+          <RankedLeagueView
+            friends={friends}
+            exercises={exercises}
+            logs={logs}
+            activeFriendId={authUser.id}
+            currentUser={authUser}
+            onNavigateTab={(tab) => setActiveTab(tab as any)}
           />
         )}
 
