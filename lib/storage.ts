@@ -13,6 +13,8 @@ export const INITIAL_EXERCISES: Exercise[] = [
   { id: 'e8', name: 'Curl de Bíceps con Barra EZ', category: 'Brazos', equipment: 'Barra', description: 'Aislamiento de bíceps.' },
   { id: 'e9', name: 'Fondos en Paralelas (Tríceps)', category: 'Brazos', equipment: 'Corporal', description: 'Empuje con peso corporal o lastre para tríceps y pecho.' },
   { id: 'e10', name: 'Elevación de Piernas Colgado', category: 'Core', equipment: 'Corporal', description: 'Fortalecimiento de abdomen bajo y flexores de cadera.' },
+  { id: 'e11', name: 'Peso Muerto con Barra', category: 'Espalda', equipment: 'Barra', description: 'Levantamiento de fuerza total para cadena posterior, glúteos y espalda.' },
+  { id: 'e12', name: 'Sentadilla Libre con Barra', category: 'Piernas', equipment: 'Barra', description: 'Sentadilla clásica profunda con barra para fuerza máxima de piernas.' },
 ];
 
 export const INITIAL_LOGS: WorkoutLog[] = [];

@@ -51,8 +51,15 @@ export async function syncWithSupabase() {
       remoteExercises
     );
 
-    // If remote exercises is empty, seed exercise catalog to Supabase
-    if (remoteExercises.length === 0 && combinedExercises.length > 0) {
+    // Ensure all initial exercises exist in remote Supabase catalog
+    if (remoteExercises.length > 0) {
+      const remoteIds = new Set(remoteExercises.map((e) => e.id));
+      for (const ex of INITIAL_EXERCISES) {
+        if (!remoteIds.has(ex.id)) {
+          await addExerciseAction(ex).catch(() => {});
+        }
+      }
+    } else if (combinedExercises.length > 0) {
       for (const ex of combinedExercises) {
         await addExerciseAction(ex).catch(() => {});
       }

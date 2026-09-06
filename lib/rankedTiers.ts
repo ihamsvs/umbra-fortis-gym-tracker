@@ -1,5 +1,5 @@
 import { WorkoutLog, Exercise, Friend } from '@/types/gym';
-import { calculate1RM } from './utils';
+import { calculate1RM, getMaxWeightInLog, getFriendPRs } from './utils';
 
 export type RankTierId =
   | 'bronce'
@@ -25,22 +25,22 @@ export const RANKED_EXERCISES: RankedExerciseConfig[] = [
   {
     id: 'bench_press',
     name: 'Press de Banca con Barra',
-    shortName: 'Banca',
+    shortName: 'Press de Banca',
     category: 'Pecho',
     matchKeywords: ['banca', 'bench'],
   },
   {
     id: 'squat',
-    name: 'Sentadilla Trasera con Barra',
+    name: 'Sentadilla con Barra',
     shortName: 'Sentadilla',
     category: 'Piernas',
     matchKeywords: ['sentadilla', 'squat'],
   },
   {
     id: 'deadlift',
-    name: 'Peso Muerto',
+    name: 'Peso Muerto con Barra',
     shortName: 'Peso Muerto',
-    category: 'Piernas / Espalda',
+    category: 'Espalda / Piernas',
     matchKeywords: ['peso muerto', 'deadlift'],
   },
   {
@@ -208,6 +208,8 @@ export interface AthleteRankResult {
   best1RM: number;
   bestWeight: number;
   bestReps: number;
+  prDate?: string;
+  hasDbRecord: boolean;
   lp: number; // League points 0 - 100
   kgToNextTier: number;
   rankTitle: string;
@@ -277,7 +279,7 @@ export function calculateRankFrom1RM(
 }
 
 /**
- * Gets best 1RM for an athlete for a specific ranked exercise from logs
+ * Gets the official PR stored in database for an athlete and calculates their rank
  */
 export function getAthleteRankForExercise(
   friendId: string,
@@ -287,32 +289,62 @@ export function getAthleteRankForExercise(
 ): AthleteRankResult {
   const config = RANKED_EXERCISES.find((e) => e.id === exerciseType)!;
   
-  // Find matching exercise IDs
-  const matchingExerciseIds = new Set(
-    exercises
-      .filter((ex) => matchRankedExercise(ex.name) === exerciseType)
-      .map((ex) => ex.id)
-  );
+  // Find matching exercise IDs in catalog
+  const matchingExercises = exercises.filter((ex) => matchRankedExercise(ex.name) === exerciseType);
+  const matchingExerciseIds = new Set(matchingExercises.map((ex) => ex.id));
 
-  let best1RM = 0;
-  let bestWeight = 0;
-  let bestReps = 0;
+  // Get all PRs calculated from DB logs for this friend
+  const friendPRs = getFriendPRs(logs, friendId);
 
-  // Search logs
-  const athleteLogs = logs.filter((l) => l.friendId === friendId && matchingExerciseIds.has(l.exerciseId));
+  let bestPR: {
+    exerciseId: string;
+    maxWeight: number;
+    max1RM: number;
+    repsAtMax: number;
+    date: string;
+  } | null = null;
 
-  for (const log of athleteLogs) {
-    for (const set of log.sets) {
-      if (set.weight > 0 && set.reps > 0) {
-        const est1RM = calculate1RM(set.weight, set.reps);
-        if (est1RM > best1RM) {
-          best1RM = est1RM;
-          bestWeight = set.weight;
-          bestReps = set.reps;
+  for (const exId of Array.from(matchingExerciseIds)) {
+    const pr = friendPRs[exId];
+    if (pr && pr.maxWeight > 0) {
+      if (
+        !bestPR ||
+        pr.maxWeight > bestPR.maxWeight ||
+        (pr.maxWeight === bestPR.maxWeight && pr.max1RM > bestPR.max1RM)
+      ) {
+        bestPR = pr;
+      }
+    }
+  }
+
+  // Also inspect all logs directly to catch any matching logs
+  if (!bestPR || bestPR.maxWeight === 0) {
+    const athleteLogs = logs.filter(
+      (l) => l.friendId === friendId && matchingExerciseIds.has(l.exerciseId)
+    );
+
+    for (const log of athleteLogs) {
+      const { maxWeight, reps } = getMaxWeightInLog(log.sets);
+      if (maxWeight > 0 && reps > 0) {
+        const est1RM = calculate1RM(maxWeight, reps);
+        if (!bestPR || maxWeight > bestPR.maxWeight || est1RM > bestPR.max1RM) {
+          bestPR = {
+            exerciseId: log.exerciseId,
+            maxWeight,
+            max1RM: est1RM,
+            repsAtMax: reps,
+            date: log.date,
+          };
         }
       }
     }
   }
+
+  const hasDbRecord = Boolean(bestPR && bestPR.maxWeight > 0);
+  const best1RM = bestPR ? bestPR.max1RM : 0;
+  const bestWeight = bestPR ? bestPR.maxWeight : 0;
+  const bestReps = bestPR ? bestPR.repsAtMax : 0;
+  const prDate = bestPR ? bestPR.date : '';
 
   const { tier, nextTier, lp, kgToNextTier } = calculateRankFrom1RM(exerciseType, best1RM);
 
@@ -324,14 +356,18 @@ export function getAthleteRankForExercise(
     best1RM,
     bestWeight,
     bestReps,
+    prDate,
+    hasDbRecord,
     lp,
     kgToNextTier,
-    rankTitle: `${tier.name.toUpperCase()} • ${best1RM > 0 ? `${best1RM} KG` : 'SIN MARCA'}`,
+    rankTitle: hasDbRecord
+      ? `${tier.name.toUpperCase()} • ${bestWeight} KG (1RM: ${best1RM} KG)`
+      : `${tier.name.toUpperCase()} • SIN PR EN BD`,
   };
 }
 
 /**
- * Generates ranked leaderboard for all athletes in a specific exercise
+ * Generates ranked leaderboard for all athletes in a specific exercise based on DB PRs
  */
 export function getRankedLeaderboard(
   exerciseType: RankedExerciseType,
@@ -352,7 +388,7 @@ export function getRankedLeaderboard(
     };
   });
 
-  // Sort descending by 1RM, then by tier order
+  // Sort descending by DB 1RM, then by tier order
   list.sort((a, b) => {
     if (b.rankResult.best1RM !== a.rankResult.best1RM) {
       return b.rankResult.best1RM - a.rankResult.best1RM;
