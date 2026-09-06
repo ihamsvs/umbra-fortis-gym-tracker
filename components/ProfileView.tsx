@@ -24,6 +24,7 @@ import {
 import { BatIcon } from '@/components/BatIcon';
 import { FriendAvatar } from '@/components/FriendAvatar';
 import { PRShareStoryModal, PRShareData } from '@/components/PRShareStoryModal';
+import { getAthleteRankForExercise } from '@/lib/rankedTiers';
 
 interface ProfileViewProps {
   friends: Friend[];
@@ -113,7 +114,11 @@ export function ProfileView({
     }).filter((item) => item.exercise);
   }, [exercises, friendPRsMap]);
 
-  // Other friends stats
+  // Ranked tier for Bench Press
+  const benchRank = useMemo(() => {
+    if (!activeFriend) return null;
+    return getAthleteRankForExercise(activeFriend.id, 'bench_press', logs, exercises);
+  }, [activeFriend, logs, exercises]);
   const friendsStats = useMemo(() => {
     return otherFriends.map((friend) => {
       const friendLogs = logs.filter((l) => l.friendId === friend.id);
@@ -243,6 +248,58 @@ export function ProfileView({
           </div>
         </div>
       </div>
+
+      {/* Ranked League Tier Teaser Card */}
+      {benchRank && (
+        <div
+          onClick={() => onNavigateTab && onNavigateTab('ranked')}
+          className={`cursor-pointer group relative overflow-hidden rounded-3xl border-2 p-5 shadow-xl transition-all hover:scale-[1.01] ${benchRank.tier.accentBg} ${benchRank.tier.borderColor}`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg border"
+                style={{
+                  backgroundColor: `${benchRank.tier.color}20`,
+                  borderColor: benchRank.tier.color,
+                }}
+              >
+                <Trophy className="w-6 h-6" style={{ color: benchRank.tier.color }} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                    Liga Ranked • Press de Banca
+                  </span>
+                  <span
+                    className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border"
+                    style={{
+                      color: benchRank.tier.color,
+                      backgroundColor: `${benchRank.tier.color}15`,
+                      borderColor: `${benchRank.tier.color}40`,
+                    }}
+                  >
+                    Rango: {benchRank.tier.name}
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
+                  {benchRank.tier.name} • {benchRank.best1RM > 0 ? `${benchRank.best1RM} kg (1RM)` : 'Sin marca'}
+                </h3>
+                <p className="text-xs text-zinc-400">
+                  {benchRank.nextTier
+                    ? `Faltan solo ${benchRank.kgToNextTier} kg para ascender a ${benchRank.nextTier.name} (${benchRank.lp} LP)`
+                    : '¡Rango Máximo Campeón alcanzado!'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-black text-white group-hover:text-accent transition-colors self-end sm:self-center">
+              <span>Ver Clasificación Completa</span>
+              <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mis Mejores Marcas (Key PRs) */}
       <div className="space-y-4">
