@@ -58,8 +58,12 @@ export function LoginScreen({ friends, onLoginSuccess, onRefreshFromSupabase }: 
       <div className="w-full max-w-md relative z-10 space-y-6">
         {/* Logo & Header */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-accent to-accent-secondary text-zinc-950 shadow-2xl shadow-accent/25 border border-white/20">
-            <BatIcon className="w-12 h-12" />
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl overflow-hidden shadow-2xl shadow-accent/25 border-2 border-accent/40 bg-zinc-950">
+            <img
+              src="/umbra-fortis-logo.jpeg"
+              alt="Umbra Fortis Logo"
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-accent/15 text-accent border border-accent/30 inline-block mb-1.5">

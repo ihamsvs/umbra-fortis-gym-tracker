@@ -1,9 +1,10 @@
 // Service Worker for Umbra Fortis Gym Tracker PWA
-const CACHE_NAME = 'umbra-fortis-v1';
+const CACHE_NAME = 'umbra-fortis-v2';
 
 const STATIC_ASSETS = [
   '/',
   '/manifest.webmanifest',
+  '/umbra-fortis-logo.jpeg',
   '/batman.svg',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',

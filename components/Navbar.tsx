@@ -91,8 +91,12 @@ export function Navbar({
 
             {/* Logo & Brand */}
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-accent to-accent-secondary text-zinc-950 shadow-lg shadow-accent/25 shrink-0">
-                <BatIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border border-accent/40 shadow-lg shadow-accent/25 shrink-0 bg-zinc-950">
+                <img
+                  src="/umbra-fortis-logo.jpeg"
+                  alt="Umbra Fortis"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">

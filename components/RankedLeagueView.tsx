@@ -11,7 +11,7 @@ import {
   calculateRankFromPR,
   TierInfo,
 } from '@/lib/rankedTiers';
-import { formatDate } from '@/lib/utils';
+import { formatDate, validateSetAgainstMR } from '@/lib/utils';
 import { FriendAvatar } from './FriendAvatar';
 import {
   Trophy,
@@ -28,6 +28,8 @@ import {
   Sparkles,
   Database,
   CheckCircle2,
+  AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import { BatIcon } from './BatIcon';
 import { PRShareStoryModal, PRShareData } from './PRShareStoryModal';
@@ -54,6 +56,12 @@ export function RankedLeagueView({
 
   // Live Simulator state (direct PR weight in kg)
   const [simWeight, setSimWeight] = useState<number>(85);
+
+  // MR Ceiling Validation Simulator state (interactive demo of the user's scenario: 90kg MR vs 100kg x 7)
+  const [testMR, setTestMR] = useState<number>(90);
+  const [testWeight, setTestWeight] = useState<number>(100);
+  const [testReps, setTestReps] = useState<number>(7);
+  const mrValidationResult = validateSetAgainstMR(testWeight, testReps, testMR);
 
   const activeFriend = currentUser || friends.find((f) => f.id === activeFriendId) || friends[0];
   const userRank = activeFriend
@@ -193,11 +201,24 @@ export function RankedLeagueView({
 
                   {userRank.hasDbRecord ? (
                     <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Database className="w-3 h-3" /> PR en Base de Datos: {userRank.bestPRWeight} kg
+                      <Database className="w-3 h-3" /> PR Validado en BD: {userRank.bestPRWeight} kg
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-full flex items-center gap-1">
                       <Database className="w-3 h-3 text-zinc-500" /> Sin PR en Base de Datos
+                    </span>
+                  )}
+
+                  {userRank.estimatedMR > 0 && (
+                    <span className="text-[10px] font-bold text-sky-400 bg-sky-500/15 border border-sky-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" /> Techo MR: {userRank.estimatedMR} kg
+                    </span>
+                  )}
+
+                  {userRank.hasDisqualifiedSets && (
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-amber-400" />
+                      <span>{userRank.disqualifiedSetsCount} serie(s) inverosímiles filtradas</span>
                     </span>
                   )}
                 </div>
@@ -300,10 +321,16 @@ export function RankedLeagueView({
               </div>
             </div>
 
-            <span className="text-xs font-mono text-zinc-400 bg-zinc-950 px-2.5 py-1 rounded-xl border border-zinc-800 flex items-center gap-1">
-              <Database className="w-3 h-3 text-emerald-400" />
-              <span>{leaderboard.length} Atletas</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-xl">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Techo MR Activo</span>
+              </span>
+              <span className="text-xs font-mono text-zinc-400 bg-zinc-950 px-2.5 py-1 rounded-xl border border-zinc-800 flex items-center gap-1">
+                <Database className="w-3 h-3 text-emerald-400" />
+                <span>{leaderboard.length} Atletas</span>
+              </span>
+            </div>
           </div>
 
           <div className="space-y-2.5">
@@ -372,6 +399,13 @@ export function RankedLeagueView({
                           <span className="text-zinc-500">Sin PR registrado en base de datos</span>
                         )}
                       </span>
+
+                      {item.rankResult.hasDisqualifiedSets && (
+                        <span className="text-amber-400 font-bold text-[10px] flex items-center gap-1 mt-0.5">
+                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                          <span>{item.rankResult.disqualifiedSetsCount} serie(s) anómalas excluidas</span>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -396,7 +430,9 @@ export function RankedLeagueView({
                         {hasMark ? `${item.rankResult.bestPRWeight} kg` : '—'}
                       </span>
                       <span className="text-[10px] text-zinc-400 font-mono block">
-                        {hasMark ? `${item.rankResult.lp} LP` : '0 LP'}
+                        {hasMark
+                          ? `${item.rankResult.lp} LP${item.rankResult.estimatedMR > 0 ? ` • MR: ${item.rankResult.estimatedMR}kg` : ''}`
+                          : '0 LP'}
                       </span>
                     </div>
                   </div>
@@ -467,6 +503,103 @@ export function RankedLeagueView({
             </div>
           </div>
 
+          {/* MR Ceiling Tester Card */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-xl space-y-4">
+            <div className="flex items-center gap-2.5 border-b border-zinc-800 pb-3">
+              <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white">Validador de Techo MR</h3>
+                <p className="text-[11px] text-zinc-400">Verifica la coherencia fisiológica de una marca</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-400 block mb-1">MR Previo:</label>
+                  <div className="flex items-center bg-zinc-950 px-2 py-1.5 rounded-xl border border-zinc-800">
+                    <input
+                      type="number"
+                      value={testMR}
+                      onChange={(e) => setTestMR(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-transparent text-xs font-mono font-bold text-white outline-none"
+                    />
+                    <span className="text-[10px] text-zinc-500">kg</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-400 block mb-1">Peso:</label>
+                  <div className="flex items-center bg-zinc-950 px-2 py-1.5 rounded-xl border border-zinc-800">
+                    <input
+                      type="number"
+                      value={testWeight}
+                      onChange={(e) => setTestWeight(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-transparent text-xs font-mono font-bold text-white outline-none"
+                    />
+                    <span className="text-[10px] text-zinc-500">kg</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-400 block mb-1">Reps:</label>
+                  <div className="flex items-center bg-zinc-950 px-2 py-1.5 rounded-xl border border-zinc-800">
+                    <input
+                      type="number"
+                      value={testReps}
+                      onChange={(e) => setTestReps(parseInt(e.target.value, 10) || 1)}
+                      className="w-full bg-transparent text-xs font-mono font-bold text-white outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Validation Result Box */}
+              {!mrValidationResult.isValid ? (
+                <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-800/60 text-red-200 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-red-400">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Registro Inverosímil Detectado</span>
+                  </div>
+                  <p className="text-[11px] text-red-300/90 leading-tight">
+                    {mrValidationResult.reason}
+                  </p>
+                  <p className="text-[10px] text-red-400 font-mono font-bold">
+                    ⛔ Quedaría excluido de la Liga Ranked
+                  </p>
+                </div>
+              ) : mrValidationResult.isWarning ? (
+                <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-800/50 text-amber-200 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-400">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Advertencia de Salto Agresivo</span>
+                  </div>
+                  <p className="text-[11px] text-amber-300 leading-tight">
+                    {mrValidationResult.reason}
+                  </p>
+                  <p className="text-[10px] text-amber-400 font-mono font-bold">
+                    ⚠️ Permitido pero con verificación de datos
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3.5 rounded-2xl bg-emerald-950/30 border border-emerald-800/40 text-emerald-200 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>Registro Fisiológicamente Válido</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-300/90 leading-tight">
+                    1RM proyectado: <strong>{mrValidationResult.projected1RM} kg</strong> (+{mrValidationResult.percentageJump}%).
+                  </p>
+                  <p className="text-[10px] text-emerald-400 font-mono font-bold">
+                    ✅ Califica limpiamente para la Liga Ranked
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Quick Help Callout */}
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-2 text-xs text-zinc-400">
             <h4 className="font-bold text-white flex items-center gap-1.5">
@@ -492,12 +625,12 @@ export function RankedLeagueView({
               Fórmula Oficial de Rangos y Puntos de Liga (LP)
             </h3>
             <p className="text-xs text-zinc-400">
-              Cálculo transparente basado directamente en los kilos de tu Récord Personal (PR).
+              Cálculo transparente basado directamente en los kilos de tu Récord Personal (PR) con validación de techo fisiológico.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {/* Formula 1: Real PR weight assignment */}
           <div className="bg-zinc-950 p-4 sm:p-5 rounded-2xl border border-zinc-800 space-y-3">
             <div className="flex items-center justify-between">
@@ -547,6 +680,30 @@ export function RankedLeagueView({
               <br />
               LP = (85 - 70) ÷ (90 - 70) = 15 ÷ 20 = <strong className="text-blue-400">75 LP</strong>.
               ¡A solo <strong className="text-accent">5 kg</strong> de ascender a Platino!
+            </div>
+          </div>
+
+          {/* Formula 3: MR Ceiling Validation */}
+          <div className="bg-zinc-950 p-4 sm:p-5 rounded-2xl border border-zinc-800 space-y-3 md:col-span-2 lg:col-span-1">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black text-white uppercase tracking-wider">
+                3. Validación de Techo MR
+              </h4>
+              <span className="text-[10px] text-amber-400 font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                Anti-Inverosímil
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 font-mono text-center text-xs sm:text-sm text-amber-400 font-bold">
+              Válido = Salto ≤ 15-20% y Reps Lógicas s/ MR
+            </div>
+
+            <p className="text-xs text-zinc-400 leading-relaxed">
+              El sistema usa tu MR previo como techo lógico. Ningún registro puede violar la física del esfuerzo sin progresión intermedia creíble.
+            </p>
+            <div className="text-[11px] text-zinc-300 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800/80">
+              <strong>Ejemplo del Techo:</strong> Si tu MR estimado es de <strong>90 kg</strong> y registras <strong>100 kg × 7 reps</strong>,
+              se detecta como <strong className="text-red-400">inverosímil (+37% salto)</strong> y queda excluido de la liga para proteger la tabla.
             </div>
           </div>
         </div>
