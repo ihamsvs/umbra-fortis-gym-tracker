@@ -283,7 +283,7 @@ export function ProfileView({
                   </span>
                 </div>
                 <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
-                  {benchRank.tier.name} • {benchRank.best1RM > 0 ? `${benchRank.best1RM} kg (1RM)` : 'Sin marca'}
+                  {benchRank.tier.name} • {benchRank.bestPRWeight > 0 ? `${benchRank.bestPRWeight} kg PR` : 'Sin marca'}
                 </h3>
                 <p className="text-xs text-zinc-400">
                   {benchRank.nextTier

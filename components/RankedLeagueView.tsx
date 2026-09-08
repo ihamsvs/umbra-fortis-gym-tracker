@@ -8,10 +8,10 @@ import {
   RankedExerciseType,
   getAthleteRankForExercise,
   getRankedLeaderboard,
-  calculateRankFrom1RM,
+  calculateRankFromPR,
   TierInfo,
 } from '@/lib/rankedTiers';
-import { calculate1RM, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { FriendAvatar } from './FriendAvatar';
 import {
   Trophy,
@@ -52,9 +52,8 @@ export function RankedLeagueView({
   const [selectedExercise, setSelectedExercise] = useState<RankedExerciseType>('bench_press');
   const [prShareData, setPrShareData] = useState<PRShareData | null>(null);
 
-  // Live Simulator state
-  const [simWeight, setSimWeight] = useState<number>(80);
-  const [simReps, setSimReps] = useState<number>(5);
+  // Live Simulator state (direct PR weight in kg)
+  const [simWeight, setSimWeight] = useState<number>(85);
 
   const activeFriend = currentUser || friends.find((f) => f.id === activeFriendId) || friends[0];
   const userRank = activeFriend
@@ -64,9 +63,8 @@ export function RankedLeagueView({
   const leaderboard = getRankedLeaderboard(selectedExercise, friends, logs, exercises);
   const activeExConfig = RANKED_EXERCISES.find((e) => e.id === selectedExercise)!;
 
-  // Simulator calculation
-  const sim1RM = calculate1RM(simWeight, simReps);
-  const simRank = calculateRankFrom1RM(selectedExercise, sim1RM);
+  // Simulator calculation directly from PR weight
+  const simRank = calculateRankFromPR(selectedExercise, simWeight);
 
   // Helper for Tier Badge Icon
   const renderTierIcon = (tier: TierInfo, className = 'w-5 h-5') => {
@@ -104,8 +102,8 @@ export function RankedLeagueView({
     setPrShareData({
       friend: activeFriend,
       exercise: matchingEx,
-      weight: userRank.bestWeight || userRank.best1RM,
-      reps: userRank.bestReps || 1,
+      weight: userRank.bestPRWeight,
+      reps: userRank.bestPRReps || 1,
       date: userRank.prDate || new Date().toISOString(),
     });
   };
@@ -123,13 +121,13 @@ export function RankedLeagueView({
               <span className="text-[10px] font-black uppercase tracking-widest text-accent px-2 py-0.5 rounded-full bg-accent/15 border border-accent/25">
                 Liga Competitiva
               </span>
-              <span className="text-[10px] font-bold text-zinc-400">Verificado por PRs en Base de Datos</span>
+              <span className="text-[10px] font-bold text-zinc-400">Basada en tu PR Real</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
               Liga Ranked de Fuerza
             </h1>
             <p className="text-xs text-zinc-400">
-              Clasificación competitiva calculada a partir de los Récords Personales (PR) guardados en la base de datos.
+              Rangos realistas medidos directamente por los kilos de tu récord personal (PR) guardado en la base de datos.
             </p>
           </div>
         </div>
@@ -195,11 +193,11 @@ export function RankedLeagueView({
 
                   {userRank.hasDbRecord ? (
                     <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Database className="w-3 h-3" /> PR Verificado en BD
+                      <Database className="w-3 h-3" /> PR en Base de Datos: {userRank.bestPRWeight} kg
                     </span>
                   ) : (
                     <span className="text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <Database className="w-3 h-3 text-zinc-500" /> Sin PR en BD
+                      <Database className="w-3 h-3 text-zinc-500" /> Sin PR en Base de Datos
                     </span>
                   )}
                 </div>
@@ -208,15 +206,15 @@ export function RankedLeagueView({
                   <span style={{ color: userRank.tier.color }}>{userRank.tier.name}</span>
                   {userRank.hasDbRecord && (
                     <span className="text-zinc-400 text-base sm:text-xl font-bold font-mono">
-                      {userRank.bestWeight} kg × {userRank.bestReps} reps ({userRank.best1RM} kg 1RM)
+                      {userRank.bestPRWeight} kg PR {userRank.bestPRReps > 1 ? `(× ${userRank.bestPRReps} reps)` : ''}
                     </span>
                   )}
                 </h2>
 
-                <p className="text-xs text-zinc-300 max-w-xl">
+                <p className="text-xs text-zinc-300 max-w-xl leading-relaxed">
                   {userRank.hasDbRecord
-                    ? `Tu rango está respaldado por tu récord guardado en la base de datos${userRank.prDate ? ` el ${formatDate(userRank.prDate)}` : ''}. ${userRank.tier.description}`
-                    : `Aún no tienes un PR registrado en la base de datos para ${activeExConfig.name}. Entrena este ejercicio para fijar tu rango inicial.`}
+                    ? `Medido con tu PR oficial de ${userRank.bestPRWeight} kg guardado en la base de datos${userRank.prDate ? ` el ${formatDate(userRank.prDate)}` : ''}. ${userRank.tier.description}`
+                    : `Aún no tienes un PR guardado en la base de datos para ${activeExConfig.name}. Entrena este ejercicio para conseguir tu rango.`}
                 </p>
               </div>
             </div>
@@ -297,7 +295,7 @@ export function RankedLeagueView({
                   Clasificación de la Liga por PR en BD
                 </h3>
                 <p className="text-xs text-zinc-400">
-                  Récords Personales verificados en {activeExConfig.name}
+                  Récords de peso guardados en {activeExConfig.name}
                 </p>
               </div>
             </div>
@@ -361,7 +359,8 @@ export function RankedLeagueView({
                           <>
                             <Database className="w-2.5 h-2.5 text-emerald-400 shrink-0" />
                             <span>
-                              PR en BD: <strong>{item.rankResult.bestWeight} kg</strong> × {item.rankResult.bestReps} reps
+                              PR: <strong>{item.rankResult.bestPRWeight} kg</strong>
+                              {item.rankResult.bestPRReps > 1 ? ` × ${item.rankResult.bestPRReps} reps` : ''}
                             </span>
                             {item.rankResult.prDate && (
                               <span className="text-zinc-500 font-mono text-[10px]">
@@ -376,7 +375,7 @@ export function RankedLeagueView({
                     </div>
                   </div>
 
-                  {/* Right: Tier Badge & 1RM */}
+                  {/* Right: Tier Badge & PR Weight */}
                   <div className="flex items-center gap-3 shrink-0 text-right">
                     <div className="hidden sm:block">
                       <span
@@ -394,7 +393,7 @@ export function RankedLeagueView({
 
                     <div>
                       <span className="text-sm sm:text-base font-black text-white font-mono block">
-                        {hasMark ? `${item.rankResult.best1RM} kg` : '—'}
+                        {hasMark ? `${item.rankResult.bestPRWeight} kg` : '—'}
                       </span>
                       <span className="text-[10px] text-zinc-400 font-mono block">
                         {hasMark ? `${item.rankResult.lp} LP` : '0 LP'}
@@ -407,7 +406,7 @@ export function RankedLeagueView({
           </div>
         </div>
 
-        {/* Live Simulator & Quick Formula (1 Col) */}
+        {/* Live Simulator & Quick Info (1 Col) */}
         <div className="space-y-6">
           {/* Simulator Card */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-xl space-y-4">
@@ -417,39 +416,23 @@ export function RankedLeagueView({
               </div>
               <div>
                 <h3 className="text-sm font-black text-white">Simulador de Rango</h3>
-                <p className="text-[11px] text-zinc-400">Prueba cómo variaría tu rango</p>
+                <p className="text-[11px] text-zinc-400">Comprueba qué rango da tu peso en barra</p>
               </div>
             </div>
 
             <div className="space-y-3">
               <div>
                 <div className="flex justify-between text-xs font-bold text-zinc-300 mb-1">
-                  <span>Peso a simular:</span>
-                  <span className="text-accent font-mono">{simWeight} kg</span>
+                  <span>Peso de PR en barra:</span>
+                  <span className="text-accent font-mono text-sm">{simWeight} kg</span>
                 </div>
                 <input
                   type="range"
                   min="20"
-                  max="250"
+                  max="220"
                   step="2.5"
                   value={simWeight}
                   onChange={(e) => setSimWeight(parseFloat(e.target.value) || 20)}
-                  className="w-full accent-amber-400 cursor-pointer"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold text-zinc-300 mb-1">
-                  <span>Repeticiones:</span>
-                  <span className="text-accent font-mono">{simReps} reps</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="15"
-                  step="1"
-                  value={simReps}
-                  onChange={(e) => setSimReps(parseInt(e.target.value, 10) || 1)}
                   className="w-full accent-amber-400 cursor-pointer"
                 />
               </div>
@@ -457,27 +440,29 @@ export function RankedLeagueView({
 
             {/* Simulation Result */}
             <div
-              className="p-3.5 rounded-2xl border text-center space-y-1 transition-all"
+              className="p-4 rounded-2xl border text-center space-y-1.5 transition-all"
               style={{
                 backgroundColor: `${simRank.tier.color}15`,
                 borderColor: `${simRank.tier.color}50`,
               }}
             >
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-                1RM Estimado: <strong className="text-white font-mono">{sim1RM} kg</strong>
+                Con un PR de <strong className="text-white font-mono">{simWeight} kg</strong>:
               </span>
               <div
-                className="text-lg font-black uppercase flex items-center justify-center gap-1.5"
+                className="text-xl font-black uppercase flex items-center justify-center gap-2"
                 style={{ color: simRank.tier.color }}
               >
-                {renderTierIcon(simRank.tier, 'w-5 h-5')}
+                {renderTierIcon(simRank.tier, 'w-6 h-6')}
                 <span>{simRank.tier.name}</span>
                 <span className="text-xs text-zinc-300 font-mono">({simRank.lp} LP)</span>
               </div>
-              {simRank.nextTier && (
-                <p className="text-[10px] text-zinc-400">
-                  A solo <strong>{simRank.kgToNextTier} kg</strong> de {simRank.nextTier.name}
+              {simRank.nextTier ? (
+                <p className="text-[11px] text-zinc-400">
+                  A solo <strong className="text-white font-mono">{simRank.kgToNextTier} kg</strong> de {simRank.nextTier.name}
                 </p>
+              ) : (
+                <p className="text-[11px] text-amber-400 font-bold">¡Rango Máximo Campeón!</p>
               )}
             </div>
           </div>
@@ -486,12 +471,11 @@ export function RankedLeagueView({
           <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-2 text-xs text-zinc-400">
             <h4 className="font-bold text-white flex items-center gap-1.5">
               <Database className="w-4 h-4 text-emerald-400" />
-              ¿Cómo se sincroniza tu PR?
+              Pesos Realistas y Motivadores
             </h4>
             <p className="leading-relaxed">
-              Cada vez que finalizas un entrenamiento en la app, tus series se guardan en la nube
-              con Supabase. Si superas tu marca anterior, el sistema marca el nuevo PR oficial y
-              actualiza tu posición en la liga en tiempo real.
+              Los rangos están calibrados para atletas reales de gimnasio de casa. Tu rango se asigna
+              directamente por el peso que levantas, sin fórmulas abstractas ni cálculos de repeticiones máximas.
             </p>
           </div>
         </div>
@@ -505,37 +489,37 @@ export function RankedLeagueView({
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-black text-white">
-              Fórmula y Metodología de Rangos
+              Fórmula Oficial de Rangos y Puntos de Liga (LP)
             </h3>
             <p className="text-xs text-zinc-400">
-              Cálculo matemático transparente del 1RM y distribución de Puntos de Liga (LP) a partir de los PRs guardados.
+              Cálculo transparente basado directamente en los kilos de tu Récord Personal (PR).
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Formula 1: Epley 1RM */}
+          {/* Formula 1: Real PR weight assignment */}
           <div className="bg-zinc-950 p-4 sm:p-5 rounded-2xl border border-zinc-800 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black text-white uppercase tracking-wider">
-                1. Fórmula de Epley (1RM Estimado del PR)
+                1. Asignación Directa por Kilos de PR
               </h4>
-              <span className="text-[10px] text-accent font-bold px-2 py-0.5 rounded bg-accent/10 border border-accent/20">
-                Estándar Internacional
+              <span className="text-[10px] text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                Peso Real en Barra
               </span>
             </div>
 
             <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 font-mono text-center text-sm sm:text-base text-accent font-bold">
-              1RM = Peso Levantado × [ 1 + ( Reps ÷ 30 ) ]
+              Rango = Umbral( PR de Peso en Base de Datos )
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Tu PR guardado en la base de datos toma la serie más pesada realizada. Con la fórmula
-              de Epley se calcula con rigor cuántos kilos moverías a 1 repetición sin exponerte a lesiones.
+              No utilizamos estimaciones teóricas ni fórmulas de 1RM. Tu rango se mide por el récord
+              de peso más alto que lograste levantar y que está guardado en tu historial de la base de datos.
             </p>
             <div className="text-[11px] text-zinc-300 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800/80">
-              <strong>Ejemplo en Sentadilla:</strong> 120 kg × 5 reps en BD = 120 × (1 + 5/30) ={' '}
-              <strong className="text-accent">140 kg (Platino 0 LP)</strong>.
+              <strong>Ejemplo en Press de Banca:</strong> Si tu récord guardado es de <strong>85 kg</strong>,
+              entras directamente en <strong className="text-yellow-400">ORO</strong> (rango de 70 a 90 kg).
             </div>
           </div>
 
@@ -551,16 +535,18 @@ export function RankedLeagueView({
             </div>
 
             <div className="p-3.5 rounded-xl bg-zinc-900 border border-zinc-800 font-mono text-center text-xs sm:text-sm text-blue-400 font-bold">
-              LP = [ (1RM - Piso del Rango) ÷ (Techo - Piso) ] × 100
+              LP = [ ( PR Actual - Piso del Rango ) ÷ ( Techo - Piso ) ] × 100
             </div>
 
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Cada rango abarca una banda de fuerza definida. A medida que subes tus kilos en tus
-              entrenamientos, acumulas LP. Al llegar a 100 LP se produce tu serie de ascenso.
+              Cada rango abarca una banda de kilos. Cada kilo que añades a tu récord suma LP en tu barra de progresión.
+              Al alcanzar 100 LP, subes inmediatamente a la siguiente división.
             </p>
             <div className="text-[11px] text-zinc-300 bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-800/80">
-              <strong>Ejemplo en Peso Muerto:</strong> Con un PR de 160 kg en Oro (140 a 180 kg):
-              (160 - 140) ÷ 40 = <strong className="text-blue-400">50 LP</strong>.
+              <strong>Ejemplo con 85 kg en Oro (70 a 90 kg):</strong>
+              <br />
+              LP = (85 - 70) ÷ (90 - 70) = 15 ÷ 20 = <strong className="text-blue-400">75 LP</strong>.
+              ¡A solo <strong className="text-accent">5 kg</strong> de ascender a Platino!
             </div>
           </div>
         </div>
@@ -572,7 +558,7 @@ export function RankedLeagueView({
           <div>
             <h3 className="text-base font-black text-white">Escalera Oficial de Rangos</h3>
             <p className="text-xs text-zinc-400">
-              Requisitos mínimos de 1RM oficial para cada nivel en {activeExConfig.name}
+              Kilos de PR necesarios en barra para cada nivel en {activeExConfig.name}
             </p>
           </div>
         </div>
