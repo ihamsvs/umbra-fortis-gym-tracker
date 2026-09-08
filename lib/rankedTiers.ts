@@ -1,5 +1,5 @@
 import { WorkoutLog, Exercise, Friend } from '@/types/gym';
-import { calculate1RM, getMaxWeightInLog, getFriendPRs } from './utils';
+import { getMaxWeightInLog, getFriendPRs } from './utils';
 
 export type RankTierId =
   | 'bronce'
@@ -61,6 +61,7 @@ export interface TierInfo {
   borderColor: string;
   glowColor: string;
   description: string;
+  // Weight thresholds based directly on real PR weight (kg lifted on the bar)
   minWeight: {
     bench_press: number;
     squat: number;
@@ -78,7 +79,7 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-amber-950/30',
     borderColor: 'border-amber-700/60',
     glowColor: 'rgba(217, 119, 6, 0.25)',
-    description: 'Fase inicial: construyendo los cimientos de la técnica y la fuerza básica.',
+    description: 'Fase inicial: dominando la técnica y construyendo el hábito.',
     minWeight: {
       bench_press: 0,
       squat: 0,
@@ -94,12 +95,12 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-slate-900/50',
     borderColor: 'border-slate-400/50',
     glowColor: 'rgba(148, 163, 184, 0.25)',
-    description: 'Fuerza intermedia sólida y técnica consolidada.',
+    description: 'Fuerza intermedia sólida con discos medianos en la barra.',
     minWeight: {
-      bench_press: 60,
-      squat: 80,
-      deadlift: 100,
-      overhead_press: 40,
+      bench_press: 50,
+      squat: 70,
+      deadlift: 80,
+      overhead_press: 30,
     },
   },
   {
@@ -110,12 +111,12 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-yellow-950/30',
     borderColor: 'border-yellow-400/60',
     glowColor: 'rgba(250, 204, 21, 0.3)',
-    description: 'Nivel avanzado de gimnasio. Dominio evidente de cargas pesadas.',
+    description: 'Nivel destacado de gimnasio. Cargas pesadas y técnica impecable.',
     minWeight: {
-      bench_press: 80,
-      squat: 110,
-      deadlift: 140,
-      overhead_press: 55,
+      bench_press: 70,
+      squat: 95,
+      deadlift: 110,
+      overhead_press: 45,
     },
   },
   {
@@ -126,12 +127,12 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-cyan-950/30',
     borderColor: 'border-cyan-400/60',
     glowColor: 'rgba(6, 182, 212, 0.35)',
-    description: '¡El Club de los 100 KG en Banca! Atleta experimentado y de élite.',
+    description: '¡Nivel avanzado! Rozando y conquistando el club de los 100 kg.',
     minWeight: {
-      bench_press: 100,
-      squat: 140,
-      deadlift: 180,
-      overhead_press: 70,
+      bench_press: 90,
+      squat: 120,
+      deadlift: 140,
+      overhead_press: 55,
     },
   },
   {
@@ -142,12 +143,12 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-blue-950/30',
     borderColor: 'border-blue-500/60',
     glowColor: 'rgba(59, 130, 246, 0.35)',
-    description: 'Fuerza excepcional. Nivel superior e inspirador para el resto del equipo.',
+    description: 'Élite del gimnasio de casa. Cargas impresionantes y gran respeto.',
     minWeight: {
-      bench_press: 120,
-      squat: 170,
-      deadlift: 220,
-      overhead_press: 80,
+      bench_press: 105,
+      squat: 140,
+      deadlift: 170,
+      overhead_press: 65,
     },
   },
   {
@@ -158,12 +159,12 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-purple-950/30',
     borderColor: 'border-purple-500/60',
     glowColor: 'rgba(168, 85, 247, 0.4)',
-    description: 'Maestría total del hierro. Años de disciplina y sobrecarga progresiva.',
+    description: 'Fuerza titánica. Años de disciplina y dedicación al entrenamiento pesado.',
     minWeight: {
-      bench_press: 140,
-      squat: 200,
-      deadlift: 250,
-      overhead_press: 90,
+      bench_press: 120,
+      squat: 160,
+      deadlift: 200,
+      overhead_press: 75,
     },
   },
   {
@@ -174,12 +175,12 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-red-950/30',
     borderColor: 'border-red-500/60',
     glowColor: 'rgba(239, 68, 68, 0.4)',
-    description: 'Nivel competitivo de powerlifting. Una bestia levantando hierro.',
+    description: 'Fuerza extrema de competición. Una auténtica bestia en la cueva.',
     minWeight: {
-      bench_press: 160,
-      squat: 230,
-      deadlift: 280,
-      overhead_press: 100,
+      bench_press: 135,
+      squat: 180,
+      deadlift: 225,
+      overhead_press: 85,
     },
   },
   {
@@ -190,12 +191,12 @@ export const RANK_TIERS: TierInfo[] = [
     accentBg: 'bg-zinc-950',
     borderColor: 'border-amber-400',
     glowColor: 'rgba(245, 158, 11, 0.5)',
-    description: 'Campeón Supremo de Umbra Fortis. El pico absoluto de fuerza en Gotham.',
+    description: 'Campeón Supremo de Umbra Fortis. La cima absoluta de fuerza de Gotham.',
     minWeight: {
-      bench_press: 180,
-      squat: 260,
-      deadlift: 310,
-      overhead_press: 110,
+      bench_press: 150,
+      squat: 200,
+      deadlift: 250,
+      overhead_press: 95,
     },
   },
 ];
@@ -205,9 +206,8 @@ export interface AthleteRankResult {
   nextTier: TierInfo | null;
   exerciseType: RankedExerciseType;
   exerciseName: string;
-  best1RM: number;
-  bestWeight: number;
-  bestReps: number;
+  bestPRWeight: number; // Official real weight (kg) from DB PR
+  bestPRReps: number;   // Reps done with that PR
   prDate?: string;
   hasDbRecord: boolean;
   lp: number; // League points 0 - 100
@@ -216,7 +216,7 @@ export interface AthleteRankResult {
 }
 
 /**
- * Finds the corresponding exercise config from an exercise name
+ * Finds matching ranked exercise type from exercise name
  */
 export function matchRankedExercise(name: string): RankedExerciseType | null {
   const lower = name.toLowerCase();
@@ -229,11 +229,11 @@ export function matchRankedExercise(name: string): RankedExerciseType | null {
 }
 
 /**
- * Calculates the exact rank, LP and distance to next rank given a 1RM
+ * Calculates the exact rank, LP and distance to next rank given real PR weight (kg)
  */
-export function calculateRankFrom1RM(
+export function calculateRankFromPR(
   exerciseType: RankedExerciseType,
-  weight1RM: number
+  weightPR: number
 ): {
   tier: TierInfo;
   nextTier: TierInfo | null;
@@ -246,7 +246,7 @@ export function calculateRankFrom1RM(
 
   for (let i = 0; i < sorted.length; i++) {
     const tier = sorted[i];
-    if (weight1RM >= tier.minWeight[exerciseType]) {
+    if (weightPR >= tier.minWeight[exerciseType]) {
       currentTier = tier;
       nextTier = i < sorted.length - 1 ? sorted[i + 1] : null;
     }
@@ -260,9 +260,9 @@ export function calculateRankFrom1RM(
     const ceiling = nextTier.minWeight[exerciseType];
     const span = ceiling - floor;
     if (span > 0) {
-      const rawLp = ((weight1RM - floor) / span) * 100;
+      const rawLp = ((weightPR - floor) / span) * 100;
       lp = Math.min(99, Math.max(0, Math.round(rawLp)));
-      kgToNextTier = Math.max(0, Math.round((ceiling - weight1RM) * 10) / 10);
+      kgToNextTier = Math.max(0, Math.round((ceiling - weightPR) * 10) / 10);
     }
   } else {
     // Already in Campeón!
@@ -279,7 +279,7 @@ export function calculateRankFrom1RM(
 }
 
 /**
- * Gets the official PR stored in database for an athlete and calculates their rank
+ * Gets the official PR stored in database for an athlete and calculates their rank from real kg
  */
 export function getAthleteRankForExercise(
   friendId: string,
@@ -288,7 +288,7 @@ export function getAthleteRankForExercise(
   exercises: Exercise[]
 ): AthleteRankResult {
   const config = RANKED_EXERCISES.find((e) => e.id === exerciseType)!;
-  
+
   // Find matching exercise IDs in catalog
   const matchingExercises = exercises.filter((ex) => matchRankedExercise(ex.name) === exerciseType);
   const matchingExerciseIds = new Set(matchingExercises.map((ex) => ex.id));
@@ -299,7 +299,6 @@ export function getAthleteRankForExercise(
   let bestPR: {
     exerciseId: string;
     maxWeight: number;
-    max1RM: number;
     repsAtMax: number;
     date: string;
   } | null = null;
@@ -307,17 +306,18 @@ export function getAthleteRankForExercise(
   for (const exId of Array.from(matchingExerciseIds)) {
     const pr = friendPRs[exId];
     if (pr && pr.maxWeight > 0) {
-      if (
-        !bestPR ||
-        pr.maxWeight > bestPR.maxWeight ||
-        (pr.maxWeight === bestPR.maxWeight && pr.max1RM > bestPR.max1RM)
-      ) {
-        bestPR = pr;
+      if (!bestPR || pr.maxWeight > bestPR.maxWeight) {
+        bestPR = {
+          exerciseId: pr.exerciseId,
+          maxWeight: pr.maxWeight,
+          repsAtMax: pr.repsAtMax,
+          date: pr.date,
+        };
       }
     }
   }
 
-  // Also inspect all logs directly to catch any matching logs
+  // Fallback to directly inspecting logs if needed
   if (!bestPR || bestPR.maxWeight === 0) {
     const athleteLogs = logs.filter(
       (l) => l.friendId === friendId && matchingExerciseIds.has(l.exerciseId)
@@ -325,13 +325,11 @@ export function getAthleteRankForExercise(
 
     for (const log of athleteLogs) {
       const { maxWeight, reps } = getMaxWeightInLog(log.sets);
-      if (maxWeight > 0 && reps > 0) {
-        const est1RM = calculate1RM(maxWeight, reps);
-        if (!bestPR || maxWeight > bestPR.maxWeight || est1RM > bestPR.max1RM) {
+      if (maxWeight > 0) {
+        if (!bestPR || maxWeight > bestPR.maxWeight) {
           bestPR = {
             exerciseId: log.exerciseId,
             maxWeight,
-            max1RM: est1RM,
             repsAtMax: reps,
             date: log.date,
           };
@@ -341,33 +339,31 @@ export function getAthleteRankForExercise(
   }
 
   const hasDbRecord = Boolean(bestPR && bestPR.maxWeight > 0);
-  const best1RM = bestPR ? bestPR.max1RM : 0;
-  const bestWeight = bestPR ? bestPR.maxWeight : 0;
-  const bestReps = bestPR ? bestPR.repsAtMax : 0;
+  const bestPRWeight = bestPR ? bestPR.maxWeight : 0;
+  const bestPRReps = bestPR ? bestPR.repsAtMax : 0;
   const prDate = bestPR ? bestPR.date : '';
 
-  const { tier, nextTier, lp, kgToNextTier } = calculateRankFrom1RM(exerciseType, best1RM);
+  const { tier, nextTier, lp, kgToNextTier } = calculateRankFromPR(exerciseType, bestPRWeight);
 
   return {
     tier,
     nextTier,
     exerciseType,
     exerciseName: config.name,
-    best1RM,
-    bestWeight,
-    bestReps,
+    bestPRWeight,
+    bestPRReps,
     prDate,
     hasDbRecord,
     lp,
     kgToNextTier,
     rankTitle: hasDbRecord
-      ? `${tier.name.toUpperCase()} • ${bestWeight} KG (1RM: ${best1RM} KG)`
+      ? `${tier.name.toUpperCase()} • ${bestPRWeight} KG PR`
       : `${tier.name.toUpperCase()} • SIN PR EN BD`,
   };
 }
 
 /**
- * Generates ranked leaderboard for all athletes in a specific exercise based on DB PRs
+ * Generates ranked leaderboard for all athletes in a specific exercise based on real DB PR weight (kg)
  */
 export function getRankedLeaderboard(
   exerciseType: RankedExerciseType,
@@ -388,10 +384,10 @@ export function getRankedLeaderboard(
     };
   });
 
-  // Sort descending by DB 1RM, then by tier order
+  // Sort descending by real PR weight lifted in DB, then by tier order
   list.sort((a, b) => {
-    if (b.rankResult.best1RM !== a.rankResult.best1RM) {
-      return b.rankResult.best1RM - a.rankResult.best1RM;
+    if (b.rankResult.bestPRWeight !== a.rankResult.bestPRWeight) {
+      return b.rankResult.bestPRWeight - a.rankResult.bestPRWeight;
     }
     return b.rankResult.tier.order - a.rankResult.tier.order;
   });
