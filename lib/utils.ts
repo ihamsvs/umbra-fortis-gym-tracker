@@ -164,8 +164,14 @@ export function getFriendPRs(logs: WorkoutLog[], friendId: string): Record<strin
  * Checks if a new log set represents a new Personal Record for that friend & exercise
  */
 export function checkIsPR(logs: WorkoutLog[], friendId: string, exerciseId: string, sets: WorkoutSet[]): boolean {
-  const { maxWeight } = getMaxWeightInLog(sets);
+  const { maxWeight, reps } = getMaxWeightInLog(sets);
   if (maxWeight <= 0) return false;
+
+  const currentMR = getAthleteEstimatedMR(logs, friendId, exerciseId);
+  const validation = validateSetAgainstMR(maxWeight, reps, currentMR);
+  if (!validation.isValid) {
+    return false; // Absurd set cannot be a valid PR
+  }
 
   const previousLogs = logs.filter(l => l.friendId === friendId && l.exerciseId === exerciseId);
   if (previousLogs.length === 0) return true; // First time performing exercise
@@ -177,4 +183,151 @@ export function checkIsPR(logs: WorkoutLog[], friendId: string, exerciseId: stri
   }
 
   return maxWeight > previousMax;
+}
+
+export interface MRValidationResult {
+  isValid: boolean;          // false if absurd/impossible
+  isWarning: boolean;        // true if jump is high (+10-20%) but possible 1RM test
+  reason?: string;           // Clear user-friendly explanation in Spanish
+  projected1RM: number;      // Calculated 1RM from this set
+  estimatedMR: number;       // Current known MR for this exercise
+  percentageJump: number;    // % change compared to estimated MR
+  maxRecommendedReps?: number;
+}
+
+/**
+ * Validates a set's weight and reps against an athlete's estimated MR (1RM ceiling).
+ * Protects against absurd/impossible records (e.g. MR 90 kg and registering 100 kg x 7 reps).
+ */
+export function validateSetAgainstMR(
+  weight: number,
+  reps: number,
+  estimatedMR: number
+): MRValidationResult {
+  if (!weight || weight <= 0 || !reps || reps <= 0) {
+    return {
+      isValid: true,
+      isWarning: false,
+      projected1RM: 0,
+      estimatedMR,
+      percentageJump: 0,
+    };
+  }
+
+  const projected1RM = calculate1RM(weight, reps);
+
+  // If athlete has no prior MR, initial set is valid (within sane human boundaries)
+  if (!estimatedMR || estimatedMR <= 0) {
+    const isSane = weight <= 450 && reps <= 50;
+    return {
+      isValid: isSane,
+      isWarning: !isSane,
+      reason: !isSane ? 'El peso o repeticiones exceden los límites fisiológicos normales.' : undefined,
+      projected1RM,
+      estimatedMR: 0,
+      percentageJump: 0,
+    };
+  }
+
+  const percentageJump = Math.round(((projected1RM - estimatedMR) / estimatedMR) * 100);
+
+  // Case 1 (User's explicit example):
+  // Weight is heavier than prior MR and reps >= 3 (e.g. 100 kg x 7 reps when MR is 90 kg)
+  if (weight > estimatedMR && reps >= 3) {
+    return {
+      isValid: false,
+      isWarning: false,
+      reason: `Registro inverosímil: Tu MR previo estimado es de ${estimatedMR} kg. No es fisiológicamente factible levantar ${weight} kg por ${reps} reps (1RM proyectado: ${projected1RM} kg, salto de +${percentageJump}%).`,
+      projected1RM,
+      estimatedMR,
+      percentageJump,
+      maxRecommendedReps: weight > estimatedMR * 1.05 ? 1 : 2,
+    };
+  }
+
+  // Case 2: Projected 1RM jumps by more than 20% in a single session
+  if (projected1RM > estimatedMR * 1.20) {
+    return {
+      isValid: false,
+      isWarning: false,
+      reason: `Salto inverosímil: Proyecta un 1RM de ${projected1RM} kg (+${percentageJump}% sobre tu MR de ${estimatedMR} kg). El techo fisiológico creíble por sesión es de ~15%.`,
+      projected1RM,
+      estimatedMR,
+      percentageJump,
+    };
+  }
+
+  // Case 3: Weight is near MR (>= 95%) but performed for 5 or more reps
+  if (weight >= estimatedMR * 0.95 && reps >= 5) {
+    return {
+      isValid: false,
+      isWarning: false,
+      reason: `Inverosímil: Levantar ${weight} kg (~${Math.round((weight / estimatedMR) * 100)}% de tu MR de ${estimatedMR} kg) para ${reps} reps supera el techo de tu repetición máxima (1RM proyectado: ${projected1RM} kg).`,
+      projected1RM,
+      estimatedMR,
+      percentageJump,
+    };
+  }
+
+  // Case 4: Warning range (10% to 20% jump, or new weight PR with 2 reps)
+  if (projected1RM > estimatedMR * 1.10 || (weight > estimatedMR && reps === 2)) {
+    return {
+      isValid: true,
+      isWarning: true,
+      reason: `Progresión muy agresiva: Proyecta ${projected1RM} kg (+${percentageJump}% sobre tu MR de ${estimatedMR} kg). Verifica que no sea un error de tipeo.`,
+      projected1RM,
+      estimatedMR,
+      percentageJump,
+    };
+  }
+
+  return {
+    isValid: true,
+    isWarning: false,
+    projected1RM,
+    estimatedMR,
+    percentageJump,
+  };
+}
+
+/**
+ * Calculates the current known estimated MR (1RM / Rep Max ceiling) for an athlete on an exercise
+ * based on all prior valid sets.
+ */
+export function getAthleteEstimatedMR(
+  logs: WorkoutLog[],
+  friendId: string,
+  exerciseId: string,
+  beforeDate?: string
+): number {
+  let relevantLogs = logs.filter((l) => l.friendId === friendId && l.exerciseId === exerciseId);
+  if (beforeDate) {
+    relevantLogs = relevantLogs.filter((l) => l.date < beforeDate);
+  }
+  if (relevantLogs.length === 0) return 0;
+
+  // Sort chronologically ascending
+  const sorted = [...relevantLogs].sort((a, b) => a.date.localeCompare(b.date));
+
+  let currentMR = 0;
+
+  for (const log of sorted) {
+    for (const set of log.sets) {
+      if (set.weight > 0 && set.reps > 0) {
+        const est = calculate1RM(set.weight, set.reps);
+        if (currentMR === 0) {
+          // First baseline record
+          currentMR = est;
+        } else {
+          // Validate set against previous MR ceiling
+          const val = validateSetAgainstMR(set.weight, set.reps, currentMR);
+          if (val.isValid && est > currentMR) {
+            currentMR = est;
+          }
+        }
+      }
+    }
+  }
+
+  return Math.round(currentMR * 10) / 10;
 }

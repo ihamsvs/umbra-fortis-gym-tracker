@@ -138,8 +138,12 @@ export function PWAInstallPrompt() {
         </button>
 
         <div className="flex items-start gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-accent to-accent-secondary text-zinc-950 flex items-center justify-center shrink-0 shadow-lg shadow-accent/25">
-            <BatIcon className="w-6 h-6" />
+          <div className="w-11 h-11 rounded-2xl overflow-hidden border border-accent/40 shadow-lg shadow-accent/25 shrink-0 bg-zinc-950 flex items-center justify-center">
+            <img
+              src="/umbra-fortis-logo.jpeg"
+              alt="Umbra Fortis Logo"
+              className="w-full h-full object-cover"
+            />
           </div>
 
           <div className="pr-4 min-w-0 flex-1">

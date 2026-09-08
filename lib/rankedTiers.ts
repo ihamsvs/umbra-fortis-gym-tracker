@@ -1,5 +1,5 @@
 import { WorkoutLog, Exercise, Friend } from '@/types/gym';
-import { getMaxWeightInLog, getFriendPRs } from './utils';
+import { getMaxWeightInLog, getFriendPRs, calculate1RM, validateSetAgainstMR } from './utils';
 
 export type RankTierId =
   | 'bronce'
@@ -206,13 +206,16 @@ export interface AthleteRankResult {
   nextTier: TierInfo | null;
   exerciseType: RankedExerciseType;
   exerciseName: string;
-  bestPRWeight: number; // Official real weight (kg) from DB PR
+  bestPRWeight: number; // Official real weight (kg) from DB PR validated against MR ceiling
   bestPRReps: number;   // Reps done with that PR
   prDate?: string;
   hasDbRecord: boolean;
   lp: number; // League points 0 - 100
   kgToNextTier: number;
   rankTitle: string;
+  estimatedMR: number;  // Athlete's verified ceiling MR (1RM)
+  hasDisqualifiedSets?: boolean; // True if sets were rejected for exceeding MR ceiling
+  disqualifiedSetsCount?: number;
 }
 
 /**
@@ -279,7 +282,8 @@ export function calculateRankFromPR(
 }
 
 /**
- * Gets the official PR stored in database for an athlete and calculates their rank from real kg
+ * Gets the official PR stored in database for an athlete and calculates their rank from real kg,
+ * validated against their physiological MR (1RM) ceiling.
  */
 export function getAthleteRankForExercise(
   friendId: string,
@@ -293,8 +297,10 @@ export function getAthleteRankForExercise(
   const matchingExercises = exercises.filter((ex) => matchRankedExercise(ex.name) === exerciseType);
   const matchingExerciseIds = new Set(matchingExercises.map((ex) => ex.id));
 
-  // Get all PRs calculated from DB logs for this friend
-  const friendPRs = getFriendPRs(logs, friendId);
+  // Get all logs of matching exercises for this athlete, sorted chronologically
+  const athleteLogs = logs
+    .filter((l) => l.friendId === friendId && matchingExerciseIds.has(l.exerciseId))
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   let bestPR: {
     exerciseId: string;
@@ -303,36 +309,44 @@ export function getAthleteRankForExercise(
     date: string;
   } | null = null;
 
-  for (const exId of Array.from(matchingExerciseIds)) {
-    const pr = friendPRs[exId];
-    if (pr && pr.maxWeight > 0) {
-      if (!bestPR || pr.maxWeight > bestPR.maxWeight) {
+  let runningMR = 0;
+  let disqualifiedSetsCount = 0;
+
+  for (const log of athleteLogs) {
+    for (const set of log.sets) {
+      const weight = Number(set.weight) || 0;
+      const reps = Number(set.reps) || 0;
+      if (weight <= 0 || reps <= 0) continue;
+
+      const projected = calculate1RM(weight, reps);
+
+      if (runningMR === 0) {
+        // Initial baseline for this athlete
+        runningMR = projected;
         bestPR = {
-          exerciseId: pr.exerciseId,
-          maxWeight: pr.maxWeight,
-          repsAtMax: pr.repsAtMax,
-          date: pr.date,
+          exerciseId: log.exerciseId,
+          maxWeight: weight,
+          repsAtMax: reps,
+          date: log.date,
         };
-      }
-    }
-  }
-
-  // Fallback to directly inspecting logs if needed
-  if (!bestPR || bestPR.maxWeight === 0) {
-    const athleteLogs = logs.filter(
-      (l) => l.friendId === friendId && matchingExerciseIds.has(l.exerciseId)
-    );
-
-    for (const log of athleteLogs) {
-      const { maxWeight, reps } = getMaxWeightInLog(log.sets);
-      if (maxWeight > 0) {
-        if (!bestPR || maxWeight > bestPR.maxWeight) {
-          bestPR = {
-            exerciseId: log.exerciseId,
-            maxWeight,
-            repsAtMax: reps,
-            date: log.date,
-          };
+      } else {
+        // Validate set against prior running MR ceiling
+        const validation = validateSetAgainstMR(weight, reps, runningMR);
+        if (validation.isValid) {
+          if (projected > runningMR) {
+            runningMR = projected;
+          }
+          if (!bestPR || weight > bestPR.maxWeight) {
+            bestPR = {
+              exerciseId: log.exerciseId,
+              maxWeight: weight,
+              repsAtMax: reps,
+              date: log.date,
+            };
+          }
+        } else {
+          // Implausible set detected (e.g. 100 kg x 7 with 90 kg MR)!
+          disqualifiedSetsCount++;
         }
       }
     }
@@ -356,6 +370,9 @@ export function getAthleteRankForExercise(
     hasDbRecord,
     lp,
     kgToNextTier,
+    estimatedMR: Math.round(runningMR * 10) / 10,
+    hasDisqualifiedSets: disqualifiedSetsCount > 0,
+    disqualifiedSetsCount,
     rankTitle: hasDbRecord
       ? `${tier.name.toUpperCase()} • ${bestPRWeight} KG PR`
       : `${tier.name.toUpperCase()} • SIN PR EN BD`,

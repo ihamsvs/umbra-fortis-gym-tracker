@@ -12,7 +12,15 @@ import {
   SessionExerciseItem,
   AppTab,
 } from '@/types/gym';
-import { calculate1RM, getMaxWeightInLog, checkIsPR, calculateVolume, formatDate } from '@/lib/utils';
+import {
+  calculate1RM,
+  getMaxWeightInLog,
+  checkIsPR,
+  calculateVolume,
+  formatDate,
+  validateSetAgainstMR,
+  getAthleteEstimatedMR,
+} from '@/lib/utils';
 import {
   Dumbbell,
   Plus,
@@ -622,6 +630,7 @@ export function WorkoutLogger({
                 const lastLog = findLastLog(currentFriendId, item.exerciseId);
                 const { maxWeight: exMax } = getMaxWeightInLog(item.sets);
                 const isPR = checkIsPR(logs, currentFriendId, item.exerciseId, item.sets);
+                const estimatedMR = getAthleteEstimatedMR(logs, currentFriendId, item.exerciseId);
 
                 return (
                   <div
@@ -643,6 +652,11 @@ export function WorkoutLogger({
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 uppercase">
                               {exercise?.category} • {exercise?.equipment}
                             </span>
+                            {estimatedMR > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-950 border border-zinc-800 text-zinc-400 flex items-center gap-1">
+                                Techo MR: <strong className="text-accent">{estimatedMR} kg</strong>
+                              </span>
+                            )}
                             {isPR && (
                               <span className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-400/30">
                                 <Award className="w-3 h-3" /> PR Potencial
@@ -674,158 +688,195 @@ export function WorkoutLogger({
                     <div className="space-y-2.5">
                       {item.sets.map((set, sIdx) => {
                         const isDone = Boolean(completedSetIds[set.id]);
+                        const setValidation = validateSetAgainstMR(set.weight, set.reps, estimatedMR);
 
                         return (
                           <div
                             key={set.id}
-                            className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-2xl border transition-all ${
+                            className={`flex flex-col gap-2 p-3 rounded-2xl border transition-all ${
                               isDone
                                 ? 'bg-emerald-950/20 border-emerald-500/30'
+                                : !setValidation.isValid && set.weight > 0 && set.reps > 0
+                                ? 'bg-red-950/20 border-red-500/50 shadow-sm shadow-red-500/5'
+                                : setValidation.isWarning && set.weight > 0 && set.reps > 0
+                                ? 'bg-amber-950/20 border-amber-500/40'
                                 : 'bg-zinc-950 border-zinc-800/80 hover:border-zinc-700'
                             }`}
                           >
-                            <div className="flex items-center justify-between sm:justify-start gap-2">
-                              <span className="w-7 h-7 rounded-lg bg-zinc-900 text-zinc-400 font-bold text-xs flex items-center justify-center">
-                                #{sIdx + 1}
-                              </span>
-                              <span className="text-xs font-bold text-zinc-400 sm:hidden">Serie #{sIdx + 1}</span>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                              <div className="flex items-center justify-between sm:justify-start gap-2">
+                                <span className="w-7 h-7 rounded-lg bg-zinc-900 text-zinc-400 font-bold text-xs flex items-center justify-center">
+                                  #{sIdx + 1}
+                                </span>
+                                <span className="text-xs font-bold text-zinc-400 sm:hidden">Serie #{sIdx + 1}</span>
 
-                              <button
-                                type="button"
-                                onClick={() => handleToggleSetCompleted(set.id)}
-                                className={`sm:hidden p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
-                                  isDone
-                                    ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/30 animate-pop'
-                                    : 'bg-zinc-800 text-zinc-400'
-                                }`}
-                              >
-                                <Check className="w-3.5 h-3.5 stroke-[3]" />
-                              </button>
-                            </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSetCompleted(set.id)}
+                                  className={`sm:hidden p-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                                    isDone
+                                      ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/30 animate-pop'
+                                      : 'bg-zinc-800 text-zinc-400'
+                                  }`}
+                                >
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </button>
+                              </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 flex-1">
-                              {/* Weight Input & Steppers */}
-                              <div className="flex items-center justify-between bg-zinc-900/90 px-3 py-1.5 rounded-xl border border-zinc-800">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] font-bold text-zinc-400 uppercase">Peso:</span>
-                                  <input
-                                    type="number"
-                                    step="0.5"
-                                    min="0"
-                                    value={set.weight === 0 ? '' : set.weight}
-                                    placeholder="0"
-                                    onChange={(e) => {
-                                      const raw = e.target.value;
-                                      const val = raw === '' ? 0 : parseFloat(raw);
-                                      handleUpdateSet(
-                                        item.id,
-                                        sIdx,
-                                        'weight',
-                                        isNaN(val) ? 0 : val
-                                      );
-                                    }}
-                                    className="w-16 bg-transparent text-sm font-black text-white text-right outline-none"
-                                  />
-                                  <span className="text-xs font-bold text-zinc-400">kg</span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 flex-1">
+                                {/* Weight Input & Steppers */}
+                                <div className="flex items-center justify-between bg-zinc-900/90 px-3 py-1.5 rounded-xl border border-zinc-800">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Peso:</span>
+                                    <input
+                                      type="number"
+                                      step="0.5"
+                                      min="0"
+                                      value={set.weight === 0 ? '' : set.weight}
+                                      placeholder="0"
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const val = raw === '' ? 0 : parseFloat(raw);
+                                        handleUpdateSet(
+                                          item.id,
+                                          sIdx,
+                                          'weight',
+                                          isNaN(val) ? 0 : val
+                                        );
+                                      }}
+                                      className="w-16 bg-transparent text-sm font-black text-white text-right outline-none"
+                                    />
+                                    <span className="text-xs font-bold text-zinc-400">kg</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAdjustWeight(item.id, sIdx, -2.5)}
+                                      className="px-1.5 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-[10px] font-bold text-zinc-400"
+                                    >
+                                      -2.5
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAdjustWeight(item.id, sIdx, +2.5)}
+                                      className="px-1.5 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-[10px] font-bold text-accent"
+                                    >
+                                      +2.5
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAdjustWeight(item.id, sIdx, +5)}
+                                      className="px-1.5 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-[10px] font-bold text-amber-400"
+                                    >
+                                      +5
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAdjustWeight(item.id, sIdx, -2.5)}
-                                    className="px-1.5 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-[10px] font-bold text-zinc-400"
-                                  >
-                                    -2.5
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAdjustWeight(item.id, sIdx, +2.5)}
-                                    className="px-1.5 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-[10px] font-bold text-accent"
-                                  >
-                                    +2.5
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAdjustWeight(item.id, sIdx, +5)}
-                                    className="px-1.5 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-[10px] font-bold text-amber-400"
-                                  >
-                                    +5
-                                  </button>
+
+                                {/* Reps Input & Steppers */}
+                                <div className="flex items-center justify-between bg-zinc-900/90 px-3 py-1.5 rounded-xl border border-zinc-800">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase">Reps:</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={set.reps === 0 ? '' : set.reps}
+                                      placeholder="0"
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        const val = raw === '' ? 0 : parseInt(raw, 10);
+                                        handleUpdateSet(
+                                          item.id,
+                                          sIdx,
+                                          'reps',
+                                          isNaN(val) ? 0 : val
+                                        );
+                                      }}
+                                      className="w-14 bg-transparent text-sm font-black text-white text-right outline-none"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAdjustReps(item.id, sIdx, -1)}
+                                      className="px-2 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-zinc-400"
+                                    >
+                                      -1
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAdjustReps(item.id, sIdx, +1)}
+                                      className="px-2 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-accent"
+                                    >
+                                      +1
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAdjustReps(item.id, sIdx, +2)}
+                                      className="px-2 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-zinc-300"
+                                    >
+                                      +2
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
 
-                              {/* Reps Input & Steppers */}
-                              <div className="flex items-center justify-between bg-zinc-900/90 px-3 py-1.5 rounded-xl border border-zinc-800">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[10px] font-bold text-zinc-400 uppercase">Reps:</span>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={set.reps === 0 ? '' : set.reps}
-                                    placeholder="0"
-                                    onChange={(e) => {
-                                      const raw = e.target.value;
-                                      const val = raw === '' ? 0 : parseInt(raw, 10);
-                                      handleUpdateSet(
-                                        item.id,
-                                        sIdx,
-                                        'reps',
-                                        isNaN(val) ? 0 : val
-                                      );
-                                    }}
-                                    className="w-14 bg-transparent text-sm font-black text-white text-right outline-none"
-                                  />
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAdjustReps(item.id, sIdx, -1)}
-                                    className="px-2 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-zinc-400"
-                                  >
-                                    -1
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAdjustReps(item.id, sIdx, +1)}
-                                    className="px-2 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-accent"
-                                  >
-                                    +1
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAdjustReps(item.id, sIdx, +2)}
-                                    className="px-2 py-0.5 rounded bg-zinc-950 hover:bg-zinc-800 text-xs font-bold text-zinc-300"
-                                  >
-                                    +2
-                                  </button>
-                                </div>
+                              <div className="flex items-center gap-2 self-end sm:self-auto">
+                                {/* Complete set button (Desktop) */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSetCompleted(set.id)}
+                                  className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-xl transition-all cursor-pointer ${
+                                    isDone
+                                      ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30 scale-105 animate-pop'
+                                      : 'bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-800 border border-zinc-800 hover:scale-105'
+                                  }`}
+                                  title={isDone ? 'Serie completada' : 'Marcar serie como completada'}
+                                >
+                                  <Check className="w-4 h-4 stroke-[3]" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSetFromExercise(item.id, sIdx)}
+                                  disabled={item.sets.length <= 1}
+                                  className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg disabled:opacity-20 transition-colors"
+                                  title="Eliminar serie"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 self-end sm:self-auto">
-                              {/* Complete set button (Desktop) */}
-                              <button
-                                type="button"
-                                onClick={() => handleToggleSetCompleted(set.id)}
-                                className={`hidden sm:flex items-center justify-center w-8 h-8 rounded-xl transition-all cursor-pointer ${
-                                  isDone
-                                    ? 'bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/30 scale-105 animate-pop'
-                                    : 'bg-zinc-900 text-zinc-500 hover:text-white hover:bg-zinc-800 border border-zinc-800 hover:scale-105'
-                                }`}
-                                title={isDone ? 'Serie completada' : 'Marcar serie como completada'}
-                              >
-                                <Check className="w-4 h-4 stroke-[3]" />
-                              </button>
+                            {/* MR Ceiling Alert (Invalid) */}
+                            {!setValidation.isValid && set.weight > 0 && set.reps > 0 && (
+                              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-950/50 border border-red-800/60 text-red-300 text-xs animate-in fade-in">
+                                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-red-200">
+                                    Registro inverosímil contra tu techo MR ({estimatedMR} kg)
+                                  </p>
+                                  <p className="text-[11px] text-red-300/90 leading-tight mt-0.5">
+                                    {setValidation.reason}
+                                  </p>
+                                  <p className="text-[10px] text-red-400 font-mono mt-1">
+                                    ⚠️ Esta serie no clasificará para la Liga Ranked.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
 
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSetFromExercise(item.id, sIdx)}
-                                disabled={item.sets.length <= 1}
-                                className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg disabled:opacity-20 transition-colors"
-                                title="Eliminar serie"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                            {/* MR Ceiling Alert (Warning) */}
+                            {setValidation.isWarning && set.weight > 0 && set.reps > 0 && (
+                              <div className="flex items-start gap-2 p-2 rounded-xl bg-amber-950/40 border border-amber-800/50 text-amber-300 text-xs animate-in fade-in">
+                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] text-amber-300 leading-tight">
+                                    {setValidation.reason}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}

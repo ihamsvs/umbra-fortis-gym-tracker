@@ -2,8 +2,14 @@
 
 import React, { useState } from 'react';
 import { Friend, Exercise, WorkoutLog, WorkoutSet, MuscleGroup } from '@/types/gym';
-import { calculate1RM, getMaxWeightInLog, checkIsPR } from '@/lib/utils';
-import { X, Plus, Trash2, Award, Calendar, FileText, Dumbbell, Flame } from 'lucide-react';
+import {
+  calculate1RM,
+  getMaxWeightInLog,
+  checkIsPR,
+  validateSetAgainstMR,
+  getAthleteEstimatedMR,
+} from '@/lib/utils';
+import { X, Plus, Trash2, Award, Calendar, FileText, Dumbbell, Flame, AlertTriangle } from 'lucide-react';
 import { addWorkoutLogAction } from '@/actions/workouts';
 
 interface QuickLogModalProps {
@@ -100,6 +106,7 @@ export function QuickLogModal({
 
   const { maxWeight, reps } = getMaxWeightInLog(sets);
   const est1RM = calculate1RM(maxWeight, reps);
+  const estimatedMR = getAthleteEstimatedMR(logs, selectedFriendId, selectedExerciseId);
   const isNewPR = checkIsPR(logs, selectedFriendId, selectedExerciseId, sets);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -169,100 +176,103 @@ export function QuickLogModal({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* Friend & Date Pickers */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
-                Levantador
-              </label>
-              <select
-                value={selectedFriendId}
-                onChange={(e) => handleSelectFriend(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 focus:border-accent text-sm font-semibold text-white outline-none"
-              >
-                {friends.length === 0 ? (
-                  <option value="">(Sin usuarios registrados)</option>
-                ) : (
-                  friends.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.avatar} {f.name}
-                    </option>
-                  ))
-                )}
-              </select>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* Athlete Selector */}
+          <div>
+            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+              Atleta
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {friends.map((friend) => (
+                <button
+                  type="button"
+                  key={friend.id}
+                  onClick={() => handleSelectFriend(friend.id)}
+                  className={`p-2 rounded-xl text-xs font-bold border transition-all text-center truncate ${
+                    selectedFriendId === friend.id
+                      ? 'bg-accent/15 border-accent text-accent'
+                      : 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  {friend.name}
+                </button>
+              ))}
             </div>
+          </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" /> Fecha
-              </label>
+          {/* Date Picker */}
+          <div>
+            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
+              Fecha
+            </label>
+            <div className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+              <Calendar className="w-4 h-4 text-zinc-500" />
               <input
                 type="date"
-                required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 focus:border-accent text-sm font-semibold text-white outline-none"
+                className="bg-transparent text-xs text-white outline-none w-full font-mono"
               />
             </div>
           </div>
 
-          {/* Exercise Selection */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400">
+          {/* Exercise Selector */}
+          <div>
+            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">
               Ejercicio
             </label>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              <button
-                type="button"
-                onClick={() => setSelectedCategory('Todos')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                  selectedCategory === 'Todos'
-                    ? 'bg-accent text-zinc-950'
-                    : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                }`}
-              >
-                Todos
-              </button>
-              {MUSCLE_GROUPS.map((group) => (
+            <div className="space-y-2">
+              {/* Muscle Group Chips */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
                 <button
                   type="button"
-                  key={group}
-                  onClick={() => setSelectedCategory(group)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
-                    selectedCategory === group
+                  onClick={() => setSelectedCategory('Todos')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors ${
+                    selectedCategory === 'Todos'
                       ? 'bg-accent text-zinc-950'
-                      : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
                   }`}
                 >
-                  {group}
+                  Todos
                 </button>
-              ))}
-            </div>
-
-            {/* Select Exercise Dropdown & Search */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <input
-                type="text"
-                placeholder="Buscar ejercicio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="sm:col-span-1 px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none"
-              />
-              <select
-                value={selectedExerciseId}
-                onChange={(e) => handleSelectExercise(e.target.value)}
-                className="sm:col-span-2 px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 focus:border-accent text-sm font-bold text-accent outline-none"
-              >
-                {filteredExercises.map((ex) => (
-                  <option key={ex.id} value={ex.id} className="text-white">
-                    [{ex.category}] {ex.name} ({ex.equipment})
-                  </option>
+                {MUSCLE_GROUPS.map((cat) => (
+                  <button
+                    type="button"
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-colors ${
+                      selectedCategory === cat
+                        ? 'bg-accent text-zinc-950'
+                        : 'bg-zinc-950 text-zinc-400 hover:text-white border border-zinc-800'
+                    }`}
+                  >
+                    {cat}
+                  </button>
                 ))}
-              </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  type="text"
+                  placeholder="Buscar ejercicio..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="sm:col-span-1 px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-500 outline-none"
+                />
+                <select
+                  value={selectedExerciseId}
+                  onChange={(e) => handleSelectExercise(e.target.value)}
+                  className="sm:col-span-2 px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 focus:border-accent text-sm font-bold text-accent outline-none"
+                >
+                  {filteredExercises.map((ex) => (
+                    <option key={ex.id} value={ex.id} className="text-white">
+                      [{ex.category}] {ex.name} ({ex.equipment})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -275,6 +285,9 @@ export function QuickLogModal({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400 font-semibold">
                 <span>Max: <strong className="text-accent">{maxWeight} kg</strong></span>
                 <span>Est 1RM: <strong className="text-amber-400">{est1RM} kg</strong></span>
+                {estimatedMR > 0 && (
+                  <span>Techo MR: <strong className="text-zinc-300">{estimatedMR} kg</strong></span>
+                )}
                 {isNewPR && (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/30 font-black text-[10px]">
                     <Award className="w-3 h-3" /> PR ALCANZABLE
@@ -284,56 +297,89 @@ export function QuickLogModal({
             </div>
 
             <div className="space-y-2.5">
-              {sets.map((set, idx) => (
-                <div key={set.id} className="flex items-center gap-2 sm:gap-4 bg-zinc-900/80 p-2.5 rounded-xl border border-zinc-800">
-                  <span className="w-6 text-center font-bold text-xs text-zinc-500">#{idx + 1}</span>
+              {sets.map((set, idx) => {
+                const setValidation = validateSetAgainstMR(set.weight, set.reps, estimatedMR);
 
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-                    <div className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
-                      <span className="text-[11px] font-bold text-zinc-400">PESO:</span>
-                      <input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        value={set.weight === 0 ? '' : set.weight}
-                        placeholder="0"
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          const val = raw === '' ? 0 : parseFloat(raw);
-                          handleUpdateSet(idx, 'weight', isNaN(val) ? 0 : val);
-                        }}
-                        className="w-full bg-transparent text-sm font-black text-white text-right outline-none"
-                      />
-                      <span className="text-xs font-bold text-zinc-400">kg</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
-                      <span className="text-[11px] font-bold text-zinc-400">REPS:</span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={set.reps === 0 ? '' : set.reps}
-                        placeholder="0"
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          const val = raw === '' ? 0 : parseInt(raw, 10);
-                          handleUpdateSet(idx, 'reps', isNaN(val) ? 0 : val);
-                        }}
-                        className="w-full bg-transparent text-sm font-black text-white text-right outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSet(idx)}
-                    disabled={sets.length <= 1}
-                    className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                return (
+                  <div
+                    key={set.id}
+                    className={`p-2.5 rounded-xl border transition-all space-y-1.5 ${
+                      !setValidation.isValid && set.weight > 0 && set.reps > 0
+                        ? 'bg-red-950/25 border-red-500/50'
+                        : setValidation.isWarning && set.weight > 0 && set.reps > 0
+                        ? 'bg-amber-950/20 border-amber-500/40'
+                        : 'bg-zinc-900/80 border-zinc-800'
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      <span className="w-6 text-center font-bold text-xs text-zinc-500">#{idx + 1}</span>
+
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                        <div className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
+                          <span className="text-[11px] font-bold text-zinc-400">PESO:</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={set.weight === 0 ? '' : set.weight}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const val = raw === '' ? 0 : parseFloat(raw);
+                              handleUpdateSet(idx, 'weight', isNaN(val) ? 0 : val);
+                            }}
+                            className="w-full bg-transparent text-sm font-black text-white text-right outline-none"
+                          />
+                          <span className="text-xs font-bold text-zinc-400">kg</span>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
+                          <span className="text-[11px] font-bold text-zinc-400">REPS:</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={set.reps === 0 ? '' : set.reps}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const val = raw === '' ? 0 : parseInt(raw, 10);
+                              handleUpdateSet(idx, 'reps', isNaN(val) ? 0 : val);
+                            }}
+                            className="w-full bg-transparent text-sm font-black text-white text-right outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSet(idx)}
+                        disabled={sets.length <= 1}
+                        className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {!setValidation.isValid && set.weight > 0 && set.reps > 0 && (
+                      <div className="flex items-start gap-1.5 text-xs text-red-300 bg-red-950/60 p-2 rounded-lg border border-red-800/60">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                        <div className="text-[11px] leading-tight">
+                          <strong>Inverosímil contra MR ({estimatedMR} kg):</strong> {setValidation.reason}
+                        </div>
+                      </div>
+                    )}
+
+                    {setValidation.isWarning && set.weight > 0 && set.reps > 0 && (
+                      <div className="flex items-start gap-1.5 text-xs text-amber-300 bg-amber-950/50 p-1.5 rounded-lg border border-amber-800/50">
+                        <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
+                        <div className="text-[11px] leading-tight">
+                          {setValidation.reason}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <button

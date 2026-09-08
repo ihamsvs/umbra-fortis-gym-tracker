@@ -44,6 +44,12 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: 'any',
       },
       {
+        src: '/umbra-fortis-logo.jpeg',
+        sizes: '1254x1254',
+        type: 'image/jpeg',
+        purpose: 'any',
+      },
+      {
         src: '/batman.svg',
         sizes: 'any',
         type: 'image/svg+xml',
