@@ -18,8 +18,8 @@ import {
   checkIsPR,
   calculateVolume,
   formatDate,
-  validateSetAgainstMR,
-  getAthleteEstimatedMR,
+  validateSetAgainstPRCeiling,
+  getAthleteCurrentPR,
 } from '@/lib/utils';
 import {
   Dumbbell,
@@ -630,7 +630,7 @@ export function WorkoutLogger({
                 const lastLog = findLastLog(currentFriendId, item.exerciseId);
                 const { maxWeight: exMax } = getMaxWeightInLog(item.sets);
                 const isPR = checkIsPR(logs, currentFriendId, item.exerciseId, item.sets);
-                const estimatedMR = getAthleteEstimatedMR(logs, currentFriendId, item.exerciseId);
+                const currentPR = getAthleteCurrentPR(logs, currentFriendId, item.exerciseId);
 
                 return (
                   <div
@@ -652,9 +652,11 @@ export function WorkoutLogger({
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 uppercase">
                               {exercise?.category} • {exercise?.equipment}
                             </span>
-                            {estimatedMR > 0 && (
+                            {currentPR > 0 && (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-950 border border-zinc-800 text-zinc-400 flex items-center gap-1">
-                                Techo MR: <strong className="text-accent">{estimatedMR} kg</strong>
+                                PR: <strong className="text-zinc-200">{currentPR} kg</strong>
+                                <span className="text-zinc-600">•</span>
+                                Techo (+20kg): <strong className="text-accent">{currentPR + 20} kg</strong>
                               </span>
                             )}
                             {isPR && (
@@ -688,7 +690,7 @@ export function WorkoutLogger({
                     <div className="space-y-2.5">
                       {item.sets.map((set, sIdx) => {
                         const isDone = Boolean(completedSetIds[set.id]);
-                        const setValidation = validateSetAgainstMR(set.weight, set.reps, estimatedMR);
+                        const setValidation = validateSetAgainstPRCeiling(set.weight, currentPR);
 
                         return (
                           <div
@@ -696,9 +698,9 @@ export function WorkoutLogger({
                             className={`flex flex-col gap-2 p-3 rounded-2xl border transition-all ${
                               isDone
                                 ? 'bg-emerald-950/20 border-emerald-500/30'
-                                : !setValidation.isValid && set.weight > 0 && set.reps > 0
+                                : !setValidation.isValid && set.weight > 0
                                 ? 'bg-red-950/20 border-red-500/50 shadow-sm shadow-red-500/5'
-                                : setValidation.isWarning && set.weight > 0 && set.reps > 0
+                                : setValidation.isWarning && set.weight > 0
                                 ? 'bg-amber-950/20 border-amber-500/40'
                                 : 'bg-zinc-950 border-zinc-800/80 hover:border-zinc-700'
                             }`}
@@ -848,26 +850,26 @@ export function WorkoutLogger({
                               </div>
                             </div>
 
-                            {/* MR Ceiling Alert (Invalid) */}
-                            {!setValidation.isValid && set.weight > 0 && set.reps > 0 && (
+                            {/* PR Ceiling Alert (Invalid) */}
+                            {!setValidation.isValid && set.weight > 0 && (
                               <div className="flex items-start gap-2 p-2.5 rounded-xl bg-red-950/50 border border-red-800/60 text-red-300 text-xs animate-in fade-in">
                                 <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                                 <div className="flex-1 min-w-0">
                                   <p className="font-bold text-red-200">
-                                    Registro inverosímil contra tu techo MR ({estimatedMR} kg)
+                                    Supera el techo permitido (+20 kg sobre PR: {currentPR > 0 ? `${currentPR + 20} kg` : ''})
                                   </p>
                                   <p className="text-[11px] text-red-300/90 leading-tight mt-0.5">
                                     {setValidation.reason}
                                   </p>
                                   <p className="text-[10px] text-red-400 font-mono mt-1">
-                                    ⚠️ Esta serie no clasificará para la Liga Ranked.
+                                    Esta serie no clasificará para la Liga Ranked.
                                   </p>
                                 </div>
                               </div>
                             )}
 
-                            {/* MR Ceiling Alert (Warning) */}
-                            {setValidation.isWarning && set.weight > 0 && set.reps > 0 && (
+                            {/* PR Ceiling Alert (Warning) */}
+                            {setValidation.isWarning && set.weight > 0 && (
                               <div className="flex items-start gap-2 p-2 rounded-xl bg-amber-950/40 border border-amber-800/50 text-amber-300 text-xs animate-in fade-in">
                                 <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
                                 <div className="flex-1 min-w-0">
