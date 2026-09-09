@@ -6,8 +6,8 @@ import {
   calculate1RM,
   getMaxWeightInLog,
   checkIsPR,
-  validateSetAgainstMR,
-  getAthleteEstimatedMR,
+  validateSetAgainstPRCeiling,
+  getAthleteCurrentPR,
 } from '@/lib/utils';
 import { X, Plus, Trash2, Award, Calendar, FileText, Dumbbell, Flame, AlertTriangle } from 'lucide-react';
 import { addWorkoutLogAction } from '@/actions/workouts';
@@ -106,7 +106,7 @@ export function QuickLogModal({
 
   const { maxWeight, reps } = getMaxWeightInLog(sets);
   const est1RM = calculate1RM(maxWeight, reps);
-  const estimatedMR = getAthleteEstimatedMR(logs, selectedFriendId, selectedExerciseId);
+  const currentPR = getAthleteCurrentPR(logs, selectedFriendId, selectedExerciseId);
   const isNewPR = checkIsPR(logs, selectedFriendId, selectedExerciseId, sets);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -285,8 +285,8 @@ export function QuickLogModal({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-400 font-semibold">
                 <span>Max: <strong className="text-accent">{maxWeight} kg</strong></span>
                 <span>Est 1RM: <strong className="text-amber-400">{est1RM} kg</strong></span>
-                {estimatedMR > 0 && (
-                  <span>Techo MR: <strong className="text-zinc-300">{estimatedMR} kg</strong></span>
+                {currentPR > 0 && (
+                  <span>Techo (+20kg): <strong className="text-zinc-300">{currentPR + 20} kg</strong></span>
                 )}
                 {isNewPR && (
                   <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/30 font-black text-[10px]">
@@ -298,15 +298,15 @@ export function QuickLogModal({
 
             <div className="space-y-2.5">
               {sets.map((set, idx) => {
-                const setValidation = validateSetAgainstMR(set.weight, set.reps, estimatedMR);
+                const setValidation = validateSetAgainstPRCeiling(set.weight, currentPR);
 
                 return (
                   <div
                     key={set.id}
                     className={`p-2.5 rounded-xl border transition-all space-y-1.5 ${
-                      !setValidation.isValid && set.weight > 0 && set.reps > 0
+                      !setValidation.isValid && set.weight > 0
                         ? 'bg-red-950/25 border-red-500/50'
-                        : setValidation.isWarning && set.weight > 0 && set.reps > 0
+                        : setValidation.isWarning && set.weight > 0
                         ? 'bg-amber-950/20 border-amber-500/40'
                         : 'bg-zinc-900/80 border-zinc-800'
                     }`}
@@ -360,16 +360,16 @@ export function QuickLogModal({
                       </button>
                     </div>
 
-                    {!setValidation.isValid && set.weight > 0 && set.reps > 0 && (
+                    {!setValidation.isValid && set.weight > 0 && (
                       <div className="flex items-start gap-1.5 text-xs text-red-300 bg-red-950/60 p-2 rounded-lg border border-red-800/60">
                         <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
                         <div className="text-[11px] leading-tight">
-                          <strong>Inverosímil contra MR ({estimatedMR} kg):</strong> {setValidation.reason}
+                          <strong>Supera techo (+20kg sobre PR):</strong> {setValidation.reason}
                         </div>
                       </div>
                     )}
 
-                    {setValidation.isWarning && set.weight > 0 && set.reps > 0 && (
+                    {setValidation.isWarning && set.weight > 0 && (
                       <div className="flex items-start gap-1.5 text-xs text-amber-300 bg-amber-950/50 p-1.5 rounded-lg border border-amber-800/50">
                         <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
                         <div className="text-[11px] leading-tight">
