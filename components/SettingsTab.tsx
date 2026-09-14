@@ -150,6 +150,38 @@ export function SettingsTab({
         </button>
       </div>
 
+      {/* App Version & Updates Section */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 bg-zinc-800 text-zinc-300 rounded-2xl border border-zinc-700">
+            <RefreshCcw className="w-5 h-5 text-accent" />
+          </div>
+          <div>
+            <h3 className="text-sm font-black text-white flex items-center gap-2">
+              Versión y Actualizaciones
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                v2.4.0
+              </span>
+            </h3>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Notificación automática en vivo cuando se publiquen mejoras y cambios en el sistema.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('umbra:check-for-update'));
+            showToast('Comprobando actualizaciones...');
+          }}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 font-bold text-xs transition-all active:scale-95 cursor-pointer shrink-0"
+        >
+          <RefreshCcw className="w-3.5 h-3.5 text-accent" />
+          <span>Buscar Actualizaciones</span>
+        </button>
+      </div>
+
       {/* Personaje y Tema */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-xl">
         <h3 className="text-sm font-extrabold text-white mb-4 flex items-center gap-2">
