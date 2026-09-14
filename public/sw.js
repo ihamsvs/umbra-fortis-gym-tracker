@@ -1,5 +1,5 @@
 // Service Worker for Umbra Fortis Gym Tracker PWA
-const CACHE_NAME = 'umbra-fortis-v2';
+const CACHE_NAME = 'umbra-fortis-v3';
 
 const STATIC_ASSETS = [
   '/',
@@ -41,6 +41,12 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
@@ -49,6 +55,7 @@ self.addEventListener('fetch', (event) => {
 
   // Skip chrome-extension or other non-http schemes and dynamic API/action paths
   if (!url.protocol.startsWith('http')) return;
+  if (url.pathname.startsWith('/api/')) return;
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {

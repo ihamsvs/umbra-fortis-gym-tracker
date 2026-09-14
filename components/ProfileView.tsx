@@ -20,11 +20,15 @@ import {
   Sparkles,
   ArrowUpRight,
   Share2,
+  Search,
+  X,
+  SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import { BatIcon } from '@/components/BatIcon';
 import { FriendAvatar } from '@/components/FriendAvatar';
 import { PRShareStoryModal, PRShareData } from '@/components/PRShareStoryModal';
-import { getAthleteRankForExercise } from '@/lib/rankedTiers';
+import { getAthleteRankForExercise, matchRankedExercise } from '@/lib/rankedTiers';
 
 interface ProfileViewProps {
   friends: Friend[];
@@ -36,7 +40,7 @@ interface ProfileViewProps {
   onNavigateTab: (tab: AppTab) => void;
 }
 
-const KEY_EXERCISE_IDS = ['e1', 'e3', 'e4', 'e5', 'e6'];
+const EXERCISE_CATEGORIES = ['Todos', 'Pecho', 'Espalda', 'Piernas', 'Hombros', 'Brazos', 'Core'] as const;
 
 export function ProfileView({
   friends,
@@ -48,6 +52,12 @@ export function ProfileView({
   onNavigateTab,
 }: ProfileViewProps) {
   const [prShareData, setPrShareData] = useState<PRShareData | null>(null);
+
+  // PR Explorer search & filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [filterScope, setFilterScope] = useState<'prs_only' | 'all'>('prs_only');
+  const [sortBy, setSortBy] = useState<'weight_desc' | 'recent' | 'name_asc'>('weight_desc');
 
   // Combine all members ensuring current user is present
   const allMembers = useMemo(() => {
@@ -102,17 +112,74 @@ export function ProfileView({
   // Recent 5 logs
   const recentLogs = activeFriendLogs.slice(0, 5);
 
-  // Key Personal Records for current user
-  const personalRecords = useMemo(() => {
-    return KEY_EXERCISE_IDS.map((eid) => {
-      const exercise = exercises.find((e) => e.id === eid);
-      const pr = friendPRsMap[eid];
+  // Process all exercises with their personal records
+  const allExercisePRs = useMemo(() => {
+    return exercises.map((exercise) => {
+      const pr = friendPRsMap[exercise.id] || null;
+      const est1RM = pr ? calculate1RM(pr.maxWeight, pr.repsAtMax) : 0;
+      const rankedType = matchRankedExercise(exercise.name);
+      const rankedTier = rankedType && activeFriend
+        ? getAthleteRankForExercise(activeFriend.id, rankedType, logs, exercises)
+        : null;
+
       return {
         exercise,
         pr,
+        est1RM,
+        rankedTier,
+        hasPR: Boolean(pr && pr.maxWeight > 0),
       };
-    }).filter((item) => item.exercise);
-  }, [exercises, friendPRsMap]);
+    });
+  }, [exercises, friendPRsMap, activeFriend, logs]);
+
+  // Total count of exercises with actual PRs recorded
+  const totalRecordedPRs = useMemo(() => {
+    return allExercisePRs.filter((item) => item.hasPR).length;
+  }, [allExercisePRs]);
+
+  // Filtered & sorted exercise PRs for search
+  const filteredExercisePRs = useMemo(() => {
+    let list = allExercisePRs;
+
+    // Filter by scope (only PRs vs all catalog)
+    if (filterScope === 'prs_only') {
+      list = list.filter((item) => item.hasPR);
+    }
+
+    // Filter by muscle category
+    if (selectedCategory !== 'Todos') {
+      list = list.filter((item) => item.exercise.category === selectedCategory);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (item) =>
+          item.exercise.name.toLowerCase().includes(q) ||
+          item.exercise.equipment.toLowerCase().includes(q) ||
+          item.exercise.category.toLowerCase().includes(q)
+      );
+    }
+
+    // Sort
+    return [...list].sort((a, b) => {
+      if (sortBy === 'weight_desc') {
+        const weightA = a.pr?.maxWeight || 0;
+        const weightB = b.pr?.maxWeight || 0;
+        if (weightB !== weightA) return weightB - weightA;
+        return a.exercise.name.localeCompare(b.exercise.name);
+      }
+      if (sortBy === 'recent') {
+        const dateA = a.pr?.date || '';
+        const dateB = b.pr?.date || '';
+        if (dateB !== dateA) return dateB.localeCompare(dateA);
+        return (b.pr?.maxWeight || 0) - (a.pr?.maxWeight || 0);
+      }
+      // name_asc
+      return a.exercise.name.localeCompare(b.exercise.name);
+    });
+  }, [allExercisePRs, filterScope, selectedCategory, searchQuery, sortBy]);
 
   // Ranked tier for Bench Press
   const benchRank = useMemo(() => {
@@ -301,77 +368,290 @@ export function ProfileView({
         </div>
       )}
 
-      {/* Mis Mejores Marcas (Key PRs) */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* ========================================================= */}
+      {/* 2. EXPLORADOR & BUSCADOR DE PRs POR EJERCICIO             */}
+      {/* ========================================================= */}
+      <div className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-5 sm:p-7 shadow-xl space-y-5">
+        {/* Header with Title & Stats */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
           <div>
-            <h2 className="text-lg font-black text-white flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-amber-400" />
-              Tus Mejores Marcas Personales
-            </h2>
-            <p className="text-xs text-zinc-400">Tus levantamientos récord en ejercicios principales</p>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                <Trophy className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-black text-white">
+                Récords Personales por Ejercicio (PRs)
+              </h2>
+            </div>
+            <p className="text-xs text-zinc-400 mt-1">
+              Encuentra y consulta tus mejores marcas y pesos máximos registrados para cada movimiento.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-xs font-mono font-bold px-3 py-1.5 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-300">
+              <strong className="text-accent">{totalRecordedPRs}</strong> con récord de{' '}
+              <span className="text-zinc-500">{exercises.length}</span> ejercicios
+            </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {personalRecords.map(({ exercise, pr }) => {
-            const est1RM = pr ? calculate1RM(pr.maxWeight, pr.repsAtMax) : 0;
+        {/* Controls: Search bar + Scope toggle + Sort */}
+        <div className="space-y-3">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+            {/* Search input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar ejercicio o equipamiento (ej. banca, mancuerna, sentadilla)..."
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-white placeholder:text-zinc-500 outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/30 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="p-1 text-zinc-500 hover:text-zinc-300 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                  title="Limpiar búsqueda"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-            return (
-              <div
-                key={exercise!.id}
-                className="bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 rounded-3xl p-5 shadow-xl hover-lift transition-all"
+            {/* Scope selector: Con Récord vs Todos */}
+            <div className="flex items-center p-1 bg-zinc-950 border border-zinc-800 rounded-2xl shrink-0">
+              <button
+                type="button"
+                onClick={() => setFilterScope('prs_only')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  filterScope === 'prs_only'
+                    ? 'bg-accent text-zinc-950 shadow-md'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 uppercase">
-                    {exercise!.category}
-                  </span>
-                  {pr && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
-                        RÉCORD
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Con Récord ({totalRecordedPRs})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterScope('all')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  filterScope === 'all'
+                    ? 'bg-accent text-zinc-950 shadow-md'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Dumbbell className="w-3.5 h-3.5" />
+                <span>Todos ({exercises.length})</span>
+              </button>
+            </div>
+
+            {/* Sort selector */}
+            <div className="flex items-center gap-1.5 bg-zinc-950 border border-zinc-800 px-3 py-2 rounded-2xl shrink-0">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-transparent text-xs font-bold text-zinc-300 outline-none cursor-pointer"
+              >
+                <option value="weight_desc" className="bg-zinc-900 text-white">Mayor Peso (PR)</option>
+                <option value="recent" className="bg-zinc-900 text-white">Más Reciente</option>
+                <option value="name_asc" className="bg-zinc-900 text-white">Nombre (A-Z)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Category Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {EXERCISE_CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-zinc-800 text-white border border-accent/40 shadow-sm'
+                      : 'bg-zinc-950/70 text-zinc-400 hover:text-zinc-200 border border-zinc-800/80 hover:bg-zinc-900'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Results Counter & Reset Filter */}
+        <div className="flex items-center justify-between text-xs text-zinc-400 pt-1">
+          <span>
+            Mostrando <strong className="text-white font-mono">{filteredExercisePRs.length}</strong>{' '}
+            {filteredExercisePRs.length === 1 ? 'ejercicio' : 'ejercicios'}
+            {selectedCategory !== 'Todos' && ` en ${selectedCategory}`}
+            {searchQuery && ` para "${searchQuery}"`}
+          </span>
+
+          {(searchQuery || selectedCategory !== 'Todos' || filterScope !== 'prs_only') && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('Todos');
+                setFilterScope('prs_only');
+                setSortBy('weight_desc');
+              }}
+              className="text-xs font-bold text-accent hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Restablecer filtros</span>
+            </button>
+          )}
+        </div>
+
+        {/* Cards Grid */}
+        {filteredExercisePRs.length === 0 ? (
+          <div className="text-center py-10 px-4 rounded-3xl bg-zinc-950/50 border border-dashed border-zinc-800 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 text-zinc-500 flex items-center justify-center mx-auto">
+              <Search className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">No se encontraron ejercicios</p>
+              <p className="text-xs text-zinc-500 mt-1">
+                {filterScope === 'prs_only' && totalRecordedPRs === 0
+                  ? 'Aún no has registrado récords de peso. ¡Comienza una sesión para guardar tus marcas!'
+                  : 'Prueba a cambiar el término de búsqueda o selecciona otra categoría.'}
+              </p>
+            </div>
+            {filterScope === 'prs_only' && (
+              <button
+                type="button"
+                onClick={() => setFilterScope('all')}
+                className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-200 border border-zinc-700 transition-colors cursor-pointer"
+              >
+                Ver todos los ejercicios del catálogo
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {filteredExercisePRs.map(({ exercise, pr, est1RM, rankedTier }) => {
+              return (
+                <div
+                  key={exercise.id}
+                  className={`relative rounded-3xl p-5 border transition-all flex flex-col justify-between space-y-4 ${
+                    pr
+                      ? 'bg-zinc-950/90 border-zinc-800/90 hover:border-zinc-700 shadow-xl hover:-translate-y-0.5'
+                      : 'bg-zinc-950/40 border-zinc-800/50 text-zinc-500'
+                  }`}
+                >
+                  {/* Top metadata tags */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-900 text-zinc-400 uppercase border border-zinc-800">
+                        {exercise.category}
                       </span>
+                      <span className="text-[10px] font-mono text-zinc-500 bg-zinc-900/60 px-2 py-0.5 rounded-full border border-zinc-800">
+                        {exercise.equipment}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {rankedTier && rankedTier.bestPRWeight > 0 && (
+                        <span
+                          className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex items-center gap-1"
+                          style={{
+                            color: rankedTier.tier.color,
+                            backgroundColor: `${rankedTier.tier.color}15`,
+                            borderColor: `${rankedTier.tier.color}40`,
+                          }}
+                        >
+                          <Trophy className="w-2.5 h-2.5" />
+                          <span>{rankedTier.tier.name}</span>
+                        </span>
+                      )}
+
+                      {pr && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPrShareData({
+                              friend: activeFriend,
+                              exercise,
+                              weight: pr.maxWeight,
+                              reps: pr.repsAtMax,
+                              date: pr.date,
+                            })
+                          }
+                          className="p-1 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-accent transition-colors cursor-pointer border border-zinc-800 hover:border-accent/40"
+                          title="Compartir en Instagram Stories o WhatsApp"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Exercise Title */}
+                  <div>
+                    <h3 className="text-sm sm:text-base font-extrabold text-white leading-snug line-clamp-2">
+                      {exercise.name}
+                    </h3>
+                    {exercise.description && (
+                      <p className="text-[11px] text-zinc-500 line-clamp-1 mt-0.5">
+                        {exercise.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* PR Weight Display */}
+                  {pr ? (
+                    <div className="pt-2 border-t border-zinc-900 flex items-end justify-between">
+                      <div>
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-2xl sm:text-3xl font-black text-accent tracking-tight">
+                            {pr.maxWeight} kg
+                          </span>
+                          <span className="text-xs font-bold text-zinc-400">
+                            × {pr.repsAtMax} reps
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 mt-0.5 font-mono flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-zinc-600" />
+                          <span>{formatDate(pr.date)}</span>
+                        </p>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[9px] font-bold text-zinc-500 uppercase block">
+                          1RM Estimado
+                        </span>
+                        <span className="text-xs sm:text-sm font-black text-sky-400 font-mono">
+                          {est1RM} kg
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="pt-2 border-t border-zinc-900/60 flex items-center justify-between">
+                      <span className="text-xs text-zinc-600 italic">Sin récord aún</span>
                       <button
                         type="button"
-                        onClick={() =>
-                          setPrShareData({
-                            friend: activeFriend,
-                            exercise: exercise!,
-                            weight: pr.maxWeight,
-                            reps: pr.repsAtMax,
-                            date: pr.date,
-                          })
-                        }
-                        className="p-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-accent transition-colors cursor-pointer"
-                        title="Compartir en Instagram Stories o WhatsApp"
+                        onClick={onOpenQuickLog}
+                        className="flex items-center gap-1 text-[11px] font-bold text-zinc-400 hover:text-accent transition-colors cursor-pointer"
                       >
-                        <Share2 className="w-3.5 h-3.5" />
+                        <Plus className="w-3 h-3" />
+                        <span>Anotar peso</span>
                       </button>
                     </div>
                   )}
                 </div>
-
-                <h3 className="text-sm font-extrabold text-white truncate">{exercise!.name}</h3>
-
-                {pr ? (
-                  <div className="mt-4 flex items-end justify-between">
-                    <div>
-                      <span className="text-2xl font-black text-accent">{pr.maxWeight} kg</span>
-                      <span className="text-xs text-zinc-400 ml-1.5">× {pr.repsAtMax} reps</span>
-                      <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">{formatDate(pr.date)}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-zinc-500 uppercase block">1RM Estimado</span>
-                      <span className="text-sm font-black text-sky-400">{est1RM} kg</span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-xs text-zinc-600 italic">Sin registros todavía</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Historial Reciente de Este Usuario */}
